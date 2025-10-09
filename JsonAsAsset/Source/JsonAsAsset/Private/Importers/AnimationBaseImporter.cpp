@@ -8,7 +8,6 @@
 #include "Utilities/MathUtilities.h"
 #include "Animation/AnimSequence.h"
 #include "Animation/AnimMontage.h"
-#include "Animation/AnimCurveCompressionCodec_CompressedRichCurve.h"
 
 bool UAnimationBaseImporter::ImportData() {
 	try {
@@ -81,10 +80,17 @@ bool UAnimationBaseImporter::ImportData() {
 		}
 
 		if (CastedAnimSequence) {
+#if ENGINE_MAJOR_VERSION == 4 && ENGINE_MINOR_VERSION >= 24
+			// UE 4.24+ → supports curve compression codecs
 			CastedAnimSequence->CurveCompressionCodec = NewObject<UAnimCurveCompressionCodec_CompressedRichCurve>(CastedAnimSequence, TEXT("CurveCompressionCodec"));
 			CastedAnimSequence->CurveCompressionCodec->SetFlags(RF_Transactional);
 			CastedAnimSequence->MarkRawDataAsModified();
 			CastedAnimSequence->RequestSyncAnimRecompression();
+#else
+			// UE 4.18 → only RawCurveData exists
+			CastedAnimSequence->MarkPackageDirty();   // marks the asset dirty for saving
+			CastedAnimSequence->PostEditChange();    // refreshes editor state if needed
+#endif
 		}
 
 		AnimSequenceBase->Modify();

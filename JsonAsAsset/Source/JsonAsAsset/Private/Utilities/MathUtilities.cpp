@@ -47,7 +47,29 @@ FFloatInterval FMathUtilities::ObjectToFloatInterval(const FJsonObject* Object) 
 	return FFloatInterval(Object->GetNumberField("Min"), Object->GetNumberField("Max"));
 }
 
-FRichCurveKey FMathUtilities::ObjectToRichCurveKey(const TSharedPtr<FJsonObject>& Object) {
+FRichCurveKey FMathUtilities::ObjectToRichCurveKey(const TSharedPtr<FJsonObject>& Object)
+{
 	FString InterpMode = Object->GetStringField("InterpMode");
-	return FRichCurveKey(Object->GetNumberField("Time"), Object->GetNumberField("Value"), Object->GetNumberField("ArriveTangent"), Object->GetNumberField("LeaveTangent"), static_cast<ERichCurveInterpMode>(StaticEnum<ERichCurveInterpMode>()->GetValueByNameString(InterpMode)));
+
+	// Get the UEnum for ERichCurveInterpMode manually
+	UEnum* EnumPtr = FindObject<UEnum>(ANY_PACKAGE, TEXT("ERichCurveInterpMode"), true);
+	ERichCurveInterpMode Mode = RCIM_Linear; // default
+
+	if (EnumPtr)
+	{
+		int64 Value = EnumPtr->GetValueByName(FName(*InterpMode));
+		if (Value != INDEX_NONE)
+		{
+			Mode = static_cast<ERichCurveInterpMode>(Value);
+		}
+	}
+
+	return FRichCurveKey(
+		Object->GetNumberField("Time"),
+		Object->GetNumberField("Value"),
+		Object->GetNumberField("ArriveTangent"),
+		Object->GetNumberField("LeaveTangent"),
+		Mode
+	);
 }
+

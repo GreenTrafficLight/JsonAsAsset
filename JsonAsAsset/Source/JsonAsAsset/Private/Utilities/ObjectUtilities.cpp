@@ -495,6 +495,7 @@ FString UObjectSerializer::GetObjectFullPath(int32 ObjectIndex) {
 	checkf(0, TEXT("Unknown object type: %s"), *ObjectType);
 	return TEXT("");
 }
+
 UObject* UObjectSerializer::DeserializeExportedObject(int32 ObjectIndex, TSharedPtr<FJsonObject> ObjectJson) {
 	// Object is defined inside our own package, so we should have
 	// NOTE: Probably shouldn't be a export

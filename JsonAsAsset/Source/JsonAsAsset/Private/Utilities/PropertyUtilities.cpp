@@ -6,7 +6,7 @@
 #include "UObject/UnrealType.h"
 #include "UObject/NoExportTypes.h"
 #include "UObject/EnumProperty.h"
- #include "Importers/Importer.h"
+#include "Importers/Importer.h"
 
 template<typename FieldType>
 FORCEINLINE FieldType* CastField(UField* Src)
@@ -283,7 +283,7 @@ void UPropertySerializer::DeserializePropertyValueInner(UProperty* Property, con
 		// For FText, standard ExportTextItem is okay to use, because it's serialization is quite complex
 		const FString SerializedValue = NewJsonValue->AsString();
 		if (!SerializedValue.IsEmpty()) {
-			FTextStringHelper::ReadFromBuffer(*SerializedValue, *static_cast<FText*>(Value));
+			*static_cast<FText*>(Value) = FText::FromString(*SerializedValue);
 		} else {
 			// TODO: Somehow add other needed things like Namespace, Key, and LocalizedString 
 			TSharedPtr<FJsonObject> Object = NewJsonValue->AsObject().ToSharedRef();
@@ -479,7 +479,7 @@ TSharedRef<FJsonValue> UPropertySerializer::SerializePropertyValueInner(UPropert
 	if (const UTextProperty* TextProperty = CastField<const UTextProperty>(Property)) {
 		FString ResultValue;
 		const FText& TextValue = TextProperty->GetPropertyValue(Value);
-		FTextStringHelper::WriteToBuffer(ResultValue, TextValue);
+		ResultValue = TextValue.ToString();
 		return MakeShareable(new FJsonValueString(ResultValue));
 	}
 

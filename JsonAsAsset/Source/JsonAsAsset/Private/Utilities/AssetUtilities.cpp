@@ -141,7 +141,8 @@ bool FAssetUtilities::ConstructAsset(const FString& Path, const FString& Type, T
 		Type == "SoundConcurrency" ||
 		Type == "DataTable" ||
 		Type == "SubsurfaceProfile" ||
-		Type == "MaterialFunction"
+		Type == "MaterialFunction" ||
+		Type == "WidgetBlueprintGeneratedClass"
 		) {
 		//		Manually supported asset types
 		// (ex: textures have to be handled separately)
@@ -162,7 +163,7 @@ bool FAssetUtilities::ConstructAsset(const FString& Path, const FString& Type, T
 
 			// Missing Plugin: Change Reference To /Game/Plugins/...
 			if ((RootName != "Game" && RootName != "Engine") && IPluginManager::Get().FindPlugin(RootName).Get() == nullptr)
-				NewPath = "/Game/Plugins" + NewPath;
+				NewPath = "/Game/Plugins/" + NewPath;
 
 			bSuccess = Construct_TypeTexture(NewPath, Texture);
 			if (bSuccess) OutObject = Cast<T>(Texture);
@@ -178,7 +179,7 @@ bool FAssetUtilities::ConstructAsset(const FString& Path, const FString& Type, T
 			FString AssetName;
 			Path.Split(".", &PackagePath, &AssetName);
 
-			if (JsonObject) {
+			if (JsonObject.IsValid()) {
 				UPackage* OutermostPkg;
 				UPackage* Package = CreatePackage(nullptr, *PackagePath);
 				OutermostPkg = Package->GetOutermost();

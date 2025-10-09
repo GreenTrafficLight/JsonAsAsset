@@ -57,16 +57,20 @@ private:
 		"SoundAttenuation",
 		"SoundConcurrency",
 		"SubsurfaceProfile",
-		"PhysicalMaterial"
+		"PhysicalMaterial",
+		"WidgetBlueprintGeneratedClass"
 	};
 
 public:
+	/* Loads a single <T> object ptr */
 	template <class T = UObject>
-	// Loads a reference to a object	
 	void LoadObject(const TSharedPtr<FJsonObject>* PackageIndex, T*& Object);
+
+	/* Loads an array of <T> object ptrs */
 	template <class T = UObject>
-	// Loads a array of references
 	TArray<T*> LoadObject(const TArray<TSharedPtr<FJsonValue>>& PackageArray, TArray<T*> Array);
+
+	void ParsePackageIndex(const TSharedPtr<FJsonObject>* PackageIndex, FString& OutType, FString& OutName, FString& OutPath, FString& OutOuter);
 
 	// Refers to AcceptedTypes to see if type is valid ------------------
 	bool CanImport(const FString& ImporterType) { return AcceptedTypes.Contains(ImporterType); }
@@ -114,13 +118,16 @@ protected:
 	bool HandleAssetCreation(UObject* Asset) const;
 	void SavePackage();
 
+	FName GetExportNameOfSubobject(const FString& PackageIndex);
+	TArray<TSharedPtr<FJsonValue>> FilterExportsByOuter(const FString& Outer);
+	TSharedPtr<FJsonValue> GetExportByObjectPath(const TSharedPtr<FJsonObject>& Object);
+
+public:
 	// Wrapper for remote downloading
 	template <class T = UObject>
 	T* DownloadWrapper(T* InObject, FString Type, FString Name, FString Path);
 
-	FName GetExportNameOfSubobject(const FString& PackageIndex);
-	TArray<TSharedPtr<FJsonValue>> FilterExportsByOuter(const FString& Outer);
-	TSharedPtr<FJsonValue> GetExportByObjectPath(const TSharedPtr<FJsonObject>& Object);
+protected:
 
 	FORCEINLINE UObjectSerializer* GetObjectSerializer() const { return GObjectSerializer; }
 	FString FileName;

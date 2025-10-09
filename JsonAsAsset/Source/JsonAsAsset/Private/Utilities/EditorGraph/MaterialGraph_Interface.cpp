@@ -12,7 +12,6 @@
 // Expressions
 #include "Materials/MaterialExpressionComment.h"
 #include "Materials/MaterialExpressionFeatureLevelSwitch.h"
-#include "Materials/MaterialExpressionShadingPathSwitch.h"
 #include "Materials/MaterialExpressionReroute.h"
 #include "Materials/MaterialExpressionQualitySwitch.h"
 #include "Materials/MaterialExpressionFunctionOutput.h"
@@ -167,23 +166,6 @@ void UMaterialGraph_Interface::PropagateExpressions(UObject* Parent, TArray<FNam
 					if (CreatedExpressionMap.Contains(InputExpressionName)) {
 						FExpressionInput Input = PopulateExpressionInput(InputObject, *CreatedExpressionMap.Find(InputExpressionName));
 						QualitySwitch->Inputs[i] = Input;
-					}
-					i++;
-				}
-			}
-		}
-		else if (Type->Type == "MaterialExpressionShadingPathSwitch") {
-			UMaterialExpressionShadingPathSwitch* ShadingPathSwitch = Cast<UMaterialExpressionShadingPathSwitch>(Expression);
-			const TArray<TSharedPtr<FJsonValue>>* InputsPtr;
-
-			if (Type->Json->TryGetArrayField("Inputs", InputsPtr)) {
-				int i = 0;
-				for (const TSharedPtr<FJsonValue> InputValue : *InputsPtr) {
-					FJsonObject* InputObject = InputValue->AsObject().Get();
-					FName InputExpressionName = GetExpressionName(InputObject);
-					if (CreatedExpressionMap.Contains(InputExpressionName)) {
-						FExpressionInput Input = PopulateExpressionInput(InputObject, *CreatedExpressionMap.Find(InputExpressionName));
-						ShadingPathSwitch->Inputs[i] = Input;
 					}
 					i++;
 				}
@@ -350,7 +332,7 @@ FExpressionInput UMaterialGraph_Interface::PopulateExpressionInput(const FJsonOb
 	int OutputIndex;
 	if (JsonProperties->TryGetNumberField("OutputIndex", OutputIndex)) Input.OutputIndex = OutputIndex;
 	FString InputName;
-	if (JsonProperties->TryGetStringField("InputName", InputName)) Input.InputName = FName(*InputName);
+	if (JsonProperties->TryGetStringField("InputName", InputName)) Input.InputName = InputName;
 	int Mask;
 	if (JsonProperties->TryGetNumberField("Mask", Mask)) Input.Mask = Mask;
 	int MaskR;
@@ -397,7 +379,7 @@ FExpressionOutput UMaterialGraph_Interface::PopulateExpressionOutput(const FJson
 	FExpressionOutput Output;
 
 	FString OutputName;
-	if (JsonProperties->TryGetStringField("OutputName", OutputName)) Output.OutputName = FName(*OutputName);
+	if (JsonProperties->TryGetStringField("OutputName", OutputName)) Output.OutputName = OutputName;
 	int Mask;
 	if (JsonProperties->TryGetNumberField("Mask", Mask)) Output.Mask = Mask;
 	int MaskR;

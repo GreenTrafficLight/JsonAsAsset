@@ -29,12 +29,12 @@
 #include "Importers/MaterialInstanceConstantImporter.h"
 #include "Importers/PhysicalMaterialImporter.h"
 #include "Importers/TextureImporter.h"
+#include "Importers/Types/UMG/Blueprint/WidgetBlueprintGeneratedClassImporter.h"
 // <---- Importers
 
 #include "Utilities/AssetUtilities.h"
 #include "Widgets/Notifications/SNotificationList.h"
 #include "Framework/Notifications/NotificationManager.h"
-#include "Importers/CurveTableImporter.h"
 #include "Styling/SlateIconFinder.h"
 #include "Misc/MessageDialog.h"
 #include "Engine/DataAsset.h"
@@ -46,13 +46,6 @@
 template <typename T>
 T* IImporter::DownloadWrapper(T* InObject, FString Type, FString Name, FString Path) {
 	const UJsonAsAssetSettings* Settings = GetDefault<UJsonAsAssetSettings>();
-
-	// If the asset can be found locally
-	if (InObject == nullptr && HandleReference(Path)) {
-		T* Object = Cast<T>(StaticLoadObject(T::StaticClass(), nullptr, *(Path + "." + Name)));
-
-		return Object;
-	}
 
 	bool bEnableLocalFetch = Settings->bEnableLocalFetch;
 	FMessageLog MessageLogger = FMessageLog(FName("JsonAsAsset"));
@@ -107,40 +100,19 @@ T* IImporter::DownloadWrapper(T* InObject, FString Type, FString Name, FString P
 
 template <typename T>
 void IImporter::LoadObject(const TSharedPtr<FJsonObject>* PackageIndex, T*& Object) {
-	FString Type;
-	FString Name;
-	PackageIndex->Get()->GetStringField("ObjectName").Split("'", &Type, &Name);
-	FString Path;
-	PackageIndex->Get()->GetStringField("ObjectPath").Split(".", &Path, nullptr);
-
-	Path = Path.Replace(TEXT("FortniteGame/Content"), TEXT("/Game"));
-	Path = Path.Replace(TEXT("Engine/Content"), TEXT("/Engine"));
-
-	Name = Name.Replace(TEXT("'"), TEXT(""));
-	FString SecondaryName;
-
-	Name.Split(":", nullptr, &SecondaryName);
-	Name.Split(":", &Name, nullptr);
-	SecondaryName;
+	FString Type, Name, Path, Outer;
+	ParsePackageIndex(PackageIndex, Type, Name, Path, Outer);
 
 #pragma warning( push )
 #pragma warning( disable : 4101) // Hide LoadObject Fail
 	// Define found object
 	T* Obj = Cast<T>(StaticLoadObject(T::StaticClass(), nullptr, *(Path + "." + Name)));
 
-	if (Obj == nullptr) // Fix references to plugins
-		Obj = Cast<T>(StaticLoadObject(T::StaticClass(), nullptr, *("/Game/Plugins" + Path + "." + Name)));
-
 	// Material Expressions may be formatted differently
-	if (SecondaryName.StartsWith("MaterialExpression")) {
+	if (Name.StartsWith("MaterialExpression")) {
 		FString AssetName; 
-			Path.Split("/", nullptr, &AssetName, ESearchCase::Type::IgnoreCase, ESearchDir::FromEnd);
-
-		// Load Object with :
-		Obj = Cast<T>(StaticLoadObject(T::StaticClass(), nullptr, *(Path + "." + AssetName + ":" + SecondaryName)));
-
-		if (Obj == nullptr) // Fix references to material/function in plugins
-			Obj = Cast<T>(StaticLoadObject(T::StaticClass(), nullptr, *("/Game/Plugins" + Path + "." + AssetName + ":" + SecondaryName)));
+		Path.Split("/", nullptr, &AssetName, ESearchCase::Type::IgnoreCase, ESearchDir::FromEnd);
+		Obj = Cast<T>(StaticLoadObject(T::StaticClass(), nullptr, *(Path + "." + AssetName + ":" + Name)));
 	}
 #pragma warning( pop )
 
@@ -164,6 +136,23 @@ TArray<T*> IImporter::LoadObject(const TArray<TSharedPtr<FJsonValue>>& PackageAr
 	}
 
 	return Array;
+}
+
+void IImporter::ParsePackageIndex(const TSharedPtr<FJsonObject>* PackageIndex, FString& OutType, FString& OutName, FString& OutPath, FString& OutOuter)
+{
+	PackageIndex->Get()->GetStringField("ObjectName").Split("'", &OutType, &OutName);
+	OutPath = PackageIndex->Get()->GetStringField(TEXT("ObjectPath"));
+	OutPath.Split(".", &OutPath, nullptr);
+
+	OutPath = OutPath.Replace(TEXT("Nimbus/Content"), TEXT("/Game"));
+	OutPath = OutPath.Replace(TEXT("Engine/Content"), TEXT("/Engine"));
+	OutName = OutName.Replace(TEXT("'"), TEXT(""));
+
+	if (OutName.Contains("."))
+		OutName.Split(".", nullptr, &OutName);
+
+	if (OutName.Contains("."))
+		OutName.Split(".", &OutOuter, &OutName);
 }
 
 bool IImporter::HandleReference(const FString& GamePath) {
@@ -260,7 +249,6 @@ bool IImporter::HandleExports(TArray<TSharedPtr<FJsonValue>> Exports, FString Fi
 				UPackage* LocalPackage = FAssetUtilities::CreateAssetPackage(Name, File, LocalOutermostPkg);
 
 				if (Type == "CurveFloat") Importer = new UCurveFloatImporter(Name, File, DataObject, LocalPackage, LocalOutermostPkg);
-				else if (Type == "CurveTable") Importer = new UCurveTableImporter(Name, File, DataObject, LocalPackage, LocalOutermostPkg);
 				else if (Type == "CurveVector") Importer = new UCurveVectorImporter(Name, File, DataObject, LocalPackage, LocalOutermostPkg);
 				else if (Type == "CurveLinearColor") Importer = new UCurveLinearColorImporter(Name, File, DataObject, LocalPackage, LocalOutermostPkg);
 				else if (Type == "CurveLinearColorAtlas") Importer = new UCurveLinearColorAtlasImporter(Name, File, DataObject, LocalPackage, LocalOutermostPkg);
@@ -279,6 +267,9 @@ bool IImporter::HandleExports(TArray<TSharedPtr<FJsonValue>> Exports, FString Fi
 
 				else if (Type == "DataTable") Importer = new UDataTableImporter(Name, File, DataObject, LocalPackage, LocalOutermostPkg);
 				else if (Type == "SubsurfaceProfile") Importer = new USubsurfaceProfileImporter(Name, File, DataObject, LocalPackage, LocalOutermostPkg);
+
+				else if (Type == "WidgetBlueprintGeneratedClass") Importer = new UWidgetBlueprintGeneratedClassImporter(Name, File, DataObject, LocalPackage, LocalOutermostPkg, Exports);
+
 				else Importer = nullptr;
 			}
 

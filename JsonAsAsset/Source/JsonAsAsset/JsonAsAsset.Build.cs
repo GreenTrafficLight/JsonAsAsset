@@ -14,9 +14,11 @@ public class JsonAsAsset : ModuleRules
 			"Json",
 			"JsonUtilities",
 			"UMG",
+            "UMGEditor",
 			"RenderCore",
-			"HTTP"
-		});
+			"HTTP",
+            "DesktopPlatform",
+        });
 		
 		PrivateDependencyModuleNames.AddRange(new string[]
 		{

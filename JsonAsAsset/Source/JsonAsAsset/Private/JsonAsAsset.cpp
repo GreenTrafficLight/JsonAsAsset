@@ -7,7 +7,8 @@
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Interfaces/IMainFrameModule.h"
 #include "LevelEditor.h"
-#include "DesktopPlatform/Public/IDesktopPlatform.h"
+#include "IDesktopPlatform.h"
+#include "DesktopPlatformModule.h"
 #include <Importer.h>
 #include <Developer/DesktopPlatform/Public/DesktopPlatformModule.h>
 #include <Runtime/Projects/Public/Interfaces/IPluginManager.h>
