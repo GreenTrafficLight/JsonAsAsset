@@ -162,8 +162,9 @@ bool FAssetUtilities::ConstructAsset(const FString& Path, const FString& Type, T
 			}
 
 			// Missing Plugin: Change Reference To /Game/Plugins/...
-			if ((RootName != "Game" && RootName != "Engine") && IPluginManager::Get().FindPlugin(RootName).Get() == nullptr)
+			if ((RootName != "Game" && RootName != "Engine") && IPluginManager::Get().FindPlugin(RootName).Get() == nullptr) {
 				NewPath = "/Game/Plugins/" + NewPath;
+			}
 
 			bSuccess = Construct_TypeTexture(NewPath, Texture);
 			if (bSuccess) OutObject = Cast<T>(Texture);
@@ -204,11 +205,11 @@ bool FAssetUtilities::Construct_TypeTexture(const FString& Path, UTexture*& OutT
 	if (Path.IsEmpty())
 		return false;
 
-	FString RequestURL = Path;
+	FString FetchPath = Path;
 	if (Path.StartsWith("/Game/Plugins/"))
-		RequestURL = RequestURL.Replace(TEXT("/Game/Plugins/"), TEXT("/"));
+		FetchPath = FetchPath.Replace(TEXT("/Game/Plugins/"), TEXT("/"));
 
-	TSharedPtr<FJsonObject> JsonObject = API_RequestExports(RequestURL);
+	TSharedPtr<FJsonObject> JsonObject = API_RequestExports(FetchPath);
 	if (JsonObject.Get() == nullptr)
 		return false;
 
@@ -219,13 +220,15 @@ bool FAssetUtilities::Construct_TypeTexture(const FString& Path, UTexture*& OutT
 	const UJsonAsAssetSettings* Settings = GetDefault<UJsonAsAssetSettings>();
 	TSharedPtr<FJsonObject> JsonExport = Response[0]->AsObject();
 	FString Type = JsonExport->GetStringField("Type");
-	UTexture* Texture = nullptr;
 
-	// --------------- Download Texture Data ------------
+	UTexture* Texture = nullptr;
+	TArray<uint8> Data = TArray<uint8>();
+
+	/* ~~~~~~~~~~~~~~~ Download Texture Data ~~~~~~~~~~~~ */
 	FHttpModule* HttpModule = &FHttpModule::Get();
 	TSharedRef<IHttpRequest, ESPMode::NotThreadSafe> HttpRequest = HttpModule->CreateRequest();
 
-	HttpRequest->SetURL(Settings->Url + "/api/v1/export?path=" + RequestURL);
+	HttpRequest->SetURL(Settings->Url + "/api/export?path=" + FetchPath);
 	HttpRequest->SetHeader("content-type", "application/octet-stream");
 	HttpRequest->SetVerb(TEXT("GET"));
 
@@ -233,12 +236,12 @@ bool FAssetUtilities::Construct_TypeTexture(const FString& Path, UTexture*& OutT
 	if (!HttpResponse.IsValid() || HttpResponse->GetResponseCode() != 200)
 		return false;
 
-	TArray<uint8> Data = HttpResponse->GetContent();
+	Data = HttpResponse->GetContent();
 	if (Data.Num() == 0)
 		return false;
-	// --------------- Download Texture Data ------------
 
-	FString PackagePath; FString AssetName; {
+	FString PackagePath; 
+	FString AssetName; {
 		Path.Split(".", &PackagePath, &AssetName);
 	}
 
@@ -258,19 +261,21 @@ bool FAssetUtilities::Construct_TypeTexture(const FString& Path, UTexture*& OutT
 	if (Type == "TextureRenderTarget2D")
 		Importer->ImportRenderTarget2D(Texture, JsonExport->GetObjectField("Properties"));
 
-	if (Texture == nullptr)
+	if (Texture == nullptr) {
 		return false;
+	}
 
 	FAssetRegistryModule::AssetCreated(Texture);
-	if (!Texture->MarkPackageDirty())
+	if (!Texture->MarkPackageDirty()) {
 		return false;
-
+	}
+		
 	Package->SetDirtyFlag(true);
 	Texture->PostEditChange();
 	Texture->AddToRoot();
 	Package->FullyLoad();
 
-	// Save texture
+	/* Save texture */
 	if (Settings->bAllowPackageSaving) {
 		const FString PackageName = Package->GetName();
 		const FString PackageFileName = FPackageName::LongPackageNameToFilename(PackageName, FPackageName::GetAssetPackageExtension());
@@ -296,7 +301,7 @@ const TSharedPtr<FJsonObject> FAssetUtilities::API_RequestExports(const FString&
 	const UJsonAsAssetSettings* Settings = GetDefault<UJsonAsAssetSettings>();
 
 	const TSharedRef<IHttpRequest> NewRequest = HttpModule->CreateRequest();
-	NewRequest->SetURL(Settings->Url + "/api/v1/export?raw=true&path=" + Path);
+	NewRequest->SetURL(Settings->Url + "/api/export?raw=true&path=" + Path);
 	NewRequest->SetVerb(TEXT("GET"));
 
 	const TSharedPtr<IHttpResponse, ESPMode::ThreadSafe> NewResponse = FRemoteUtilities::ExecuteRequestSync(NewRequest);
