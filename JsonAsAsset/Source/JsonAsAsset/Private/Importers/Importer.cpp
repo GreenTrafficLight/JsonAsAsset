@@ -232,6 +232,9 @@ bool IImporter::HandleExports(TArray<TSharedPtr<FJsonValue>> Exports, FString Fi
 
 		FString Type = DataObject->GetStringField("Type");
 		FString Name = DataObject->GetStringField("Name");
+		if (Type == "WidgetBlueprintGeneratedClass") {
+			Name = Name.LeftChop(2);
+		}
 
 		UClass* Class = FindObject<UClass>(ANY_PACKAGE, *Type);
 		bool bDataAsset = Class->IsChildOf(UDataAsset::StaticClass());

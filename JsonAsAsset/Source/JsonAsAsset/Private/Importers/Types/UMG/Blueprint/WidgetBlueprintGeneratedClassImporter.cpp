@@ -49,7 +49,11 @@ bool UWidgetBlueprintGeneratedClassImporter::ImportData() {
 
 		HandleAssetCreation(WidgetBP);
 
-		UE_LOG(LogJson, Warning, TEXT("Hello World"));
+		WidgetBP->MarkPackageDirty();
+
+		SavePackage();
+
+
 
 		return true;
 
@@ -64,11 +68,17 @@ bool UWidgetBlueprintGeneratedClassImporter::ImportData() {
 }
 
 void UWidgetBlueprintGeneratedClassImporter::HandleCanvasPanelSlots(UWidgetBlueprint* WidgetBP, const TSharedPtr<FJsonObject> CanvasPanelJsonObject, UPanelWidget* Panel) {
+	// Get the slots of the panel
 	const TArray<TSharedPtr<FJsonValue>> Slots = CanvasPanelJsonObject->GetObjectField(TEXT("Properties"))->GetArrayField(TEXT("Slots"));
+	// For each slot in the panel
 	for (const TSharedPtr<FJsonValue>& Slot : Slots) {
+		// Get the object data of the panel
 		const TSharedPtr<FJsonObject> PanelSlot = TSharedPtr<FJsonObject>(GetExportByObjectPath(Slot->AsObject())->AsObject());
+		// Get the object data of the slot
 		const TSharedPtr<FJsonObject> SlotContent = TSharedPtr<FJsonObject>(GetExportByObjectPath(PanelSlot->GetObjectField(TEXT("Properties"))->GetObjectField(TEXT("Content")))->AsObject());
 		const TSharedPtr<FJsonObject> SlotContentProperties = SlotContent->GetObjectField(TEXT("Properties"));
+
+		//GetWidgetClass(SlotContent);
 
 		// Get the type of widget and create it
 		UWidget* WidgetToPut = nullptr;
@@ -118,33 +128,17 @@ void UWidgetBlueprintGeneratedClassImporter::HandleCanvasPanelSlots(UWidgetBluep
 		else {
 			const TSharedPtr<FJsonObject>* TemplateObj;
 			if (SlotContent->TryGetObjectField(TEXT("Template"), TemplateObj)) {
-				
-				/*FString Type, ObjectPath;
-				// Split at the first `'` to separate type from path
-				if (FullString.Split(TEXT("'"), &Type, &ObjectPath))
-				{
-					// Remove trailing quote if it exists
-					ObjectPath = ObjectPath.Replace(TEXT("'"), TEXT(""));
-
-					ObjectPath = ObjectPath.Replace(TEXT("Nimbus/Content"), TEXT("/Game"));
-
-					// Optional: split off the class name if you need the name separately
-					FString OuterPath, Name;
-					if (ObjectPath.Split(TEXT("."), &OuterPath, &Name))
-					{
-						UE_LOG(LogTemp, Log, TEXT("Type: %s"), *Type);
-						UE_LOG(LogTemp, Log, TEXT("Outer Path: %s"), *OuterPath);
-						UE_LOG(LogTemp, Log, TEXT("Name: %s"), *Name);
-					}
-				}*/
-
-
-				/*FString Type, Name, Path, Outer;
+				FString Type, Name, Path, Outer;
 				IImporter* Importer = new IImporter();
 				Importer->ParsePackageIndex(TemplateObj, Type, Name, Path, Outer);
 
 				UObject* Object = NULL;
-				Importer->DownloadWrapper(Object, TEXT("WidgetBlueprintGeneratedClass"), Type, Path);*/
+				Object = Importer->DownloadWrapper(Object, TEXT("WidgetBlueprintGeneratedClass"), Type, Path);
+
+				if (UWidgetBlueprintGeneratedClass* WidgetClass = Cast<UWidgetBlueprintGeneratedClass>(Object))
+				{
+					WidgetToPut = WidgetBP->WidgetTree->ConstructWidget<UUserWidget>(WidgetClass, FName(*SlotContent->GetStringField(TEXT("Name"))));
+				}
 			}
 		}
 
@@ -191,4 +185,16 @@ void UWidgetBlueprintGeneratedClassImporter::HandleCanvasPanelSlots(UWidgetBluep
 			}
 		}
 	}
+}
+
+UClass* UWidgetBlueprintGeneratedClassImporter::GetWidgetClass(const TSharedPtr<FJsonObject>& ObjData) {
+	const FString ClassName = ObjData->GetStringField(TEXT("Class")).Replace(TEXT("UScriptClass'"), TEXT("")).Replace(TEXT("'"), TEXT(""));
+
+	UClass* WidgetClass = nullptr;
+	WidgetClass = LoadClassFromPath(ClassName, TEXT("/Script/UMG"));
+	if (WidgetClass == nullptr) {
+		WidgetClass = LoadClassFromPath(ClassName, TEXT("/Script/Nimbus"));
+	}
+
+	return WidgetClass;
 }

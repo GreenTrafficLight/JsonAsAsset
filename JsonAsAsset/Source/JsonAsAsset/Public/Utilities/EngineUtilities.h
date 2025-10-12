@@ -48,9 +48,7 @@ inline TSubclassOf<UObject> LoadClassFromPath(const FString& ObjectName, const F
 inline TSubclassOf<UObject> LoadBlueprintClass(FString& ObjectPath) {
 	const UJsonAsAssetSettings* Settings = GetDefault<UJsonAsAssetSettings>();
 
-	/*if (!Settings->AssetSettings.GameName.IsEmpty()) {
-		ObjectPath = ObjectPath.Replace(*(Settings->AssetSettings.GameName + "/Content"), TEXT("/Game"));
-	}*/
+	ObjectPath = ObjectPath.Replace(TEXT("Nimbus/Content"), TEXT("/Game"));
 
 	FString FullPath = ObjectPath;
 	if (FullPath.EndsWith(TEXT(".1"))) {
