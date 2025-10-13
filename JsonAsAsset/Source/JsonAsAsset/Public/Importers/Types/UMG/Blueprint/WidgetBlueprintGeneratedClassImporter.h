@@ -16,7 +16,7 @@ public:
 
 	virtual bool ImportData() override;
 
-	void HandleCanvasPanelSlots(UWidgetBlueprint* WidgetBP, const TSharedPtr<FJsonObject> CanvasPanelJsonObject, UPanelWidget* Panel);
+	void HandlePanelSlots(UWidgetBlueprint* WidgetBP, const TSharedPtr<FJsonObject> PanelJsonObject, UPanelWidget* Panel);
 
 private:
 	UClass* GetWidgetClass(const TSharedPtr<FJsonObject>& ObjData);
