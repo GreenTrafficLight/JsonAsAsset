@@ -1,11 +1,9 @@
-# JsonAsAsset - Legacy UE4.22
+# JsonAsAsset - Ace Combat 7
 
 [![Discord](https://img.shields.io/badge/Join%20Discord-Collector?color=0363ff&logo=discord&logoColor=white&style=for-the-badge)](https://discord.gg/h9s6qpBnUT)
 [![GitHub Downloads (all assets, all releases)](https://img.shields.io/github/downloads/JsonAsAsset/JsonAsAsset/total?style=for-the-badge&label=DOWNLOADS&color=#03ffc8)](https://github.com/JsonAsAsset/JsonAsAsset/releases)
 [![GitHub Repo stars](https://img.shields.io/github/stars/JsonAsAsset/JsonAsAsset?style=for-the-badge&logo=&color=gold)](https://github.com/JsonAsAsset/JsonAsAsset/stargazers)
-
-### NOTICE
-This branch of JsonAsAsset is not supported.
+[![Unreal Engine 4.18 Supported)](https://img.shields.io/badge/4.18-black?logo=unrealengine&style=for-the-badge&labelColor=grey)](#install)
 
 <a name="licensing"></a>
 ## Licensing 📗
