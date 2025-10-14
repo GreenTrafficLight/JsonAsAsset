@@ -30,7 +30,7 @@ bool UBlueprintGeneratedClassImporter::ImportData() {
 			// Root
 			USCS_Node* RootNode = Blueprint->SimpleConstructionScript->GetDefaultSceneRootNode();
 			const TArray<TSharedPtr<FJsonValue>> RootNodesObject = SimpleConstructionScriptObject->GetObjectField(TEXT("Properties"))->GetArrayField(TEXT("RootNodes"));
-			HandleSimpleConstructionScript(Blueprint, RootNode, RootNodesObject);
+			HandleSimpleConstructionScript(Blueprint, RootNode, RootNodesObject, true);
 
 			UE_LOG(LogTemp, Log, TEXT("TEST"));
 		}
@@ -47,7 +47,7 @@ bool UBlueprintGeneratedClassImporter::ImportData() {
 	return true;
 }
 
-void UBlueprintGeneratedClassImporter::HandleSimpleConstructionScript(UBlueprint* BP, USCS_Node* Node, const TArray<TSharedPtr<FJsonValue>> NodesObject) {
+void UBlueprintGeneratedClassImporter::HandleSimpleConstructionScript(UBlueprint* BP, USCS_Node* Node, const TArray<TSharedPtr<FJsonValue>> NodesObject, bool bIsRoot) {
 	USimpleConstructionScript* SCS = BP->SimpleConstructionScript;
 
 	for (const TSharedPtr<FJsonValue>& NodeObject : NodesObject) {
@@ -55,29 +55,6 @@ void UBlueprintGeneratedClassImporter::HandleSimpleConstructionScript(UBlueprint
 		const TSharedPtr<FJsonObject> SCSNodePropertiesObject = SCSNodeObject->GetObjectField(TEXT("Properties"));
 
 		UClass* ComponentClass = LoadClass(SCSNodePropertiesObject->GetObjectField(TEXT("ComponentClass")));
-
-		/*FString ParentVariableName;
-		if (SCSNodePropertiesObject->TryGetStringField("ParentComponentOrVariableName", ParentVariableName)) {
-			AActor* CDO = Cast<AActor>(BP->GeneratedClass->GetDefaultObject());
-			if (CDO) {
-				UActorComponent* ParentComponent = FindComponentByName(CDO, *ParentVariableName);
-				if (ParentComponent) {
-					USceneComponent* NewComp = NewObject<USceneComponent>(
-						CDO,
-						ComponentClass,
-						*SCSNodePropertiesObject->GetStringField(TEXT("InternalVariableName"))
-					);
-					NewComp->SetupAttachment(CastChecked<USceneComponent>(ParentComponent));
-					NewComp->RegisterComponent();
-				}
-
-			}
-		}
-		else {
-			USCS_Node* SCSNode = SCS->CreateNode(ComponentClass, *SCSNodePropertiesObject->GetStringField(TEXT("InternalVariableName")));
-
-			SCS->AddNode(SCSNode);
-		}*/
 
 		USCS_Node* SCSNode = SCS->CreateNode(ComponentClass, *SCSNodePropertiesObject->GetStringField(TEXT("InternalVariableName")));
 
@@ -88,15 +65,22 @@ void UBlueprintGeneratedClassImporter::HandleSimpleConstructionScript(UBlueprint
 				"VariableGuid"
 			}), SCSNode);
 
-		SCS->AddNode(SCSNode);
+		if (bIsRoot) {
+			SCS->AddNode(SCSNode);
+		}
+		else {
+			Node->AddChildNode(SCSNode);
+		}
+		
 
 		FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(BP);
 
-		/*const TArray<TSharedPtr<FJsonValue>>* ChildNodesObject;
-		SCSNodePropertiesObject->TryGetArrayField("ChildNodes", ChildNodesObject);
-		if (ChildNodesObject) {
-			HandleSimpleConstructionScript(BP, SCSNode, *ChildNodesObject);
-		}*/
+		if (SCSNodePropertiesObject->HasField(TEXT("ChildNodes")))
+		{
+			const TArray<TSharedPtr<FJsonValue>> ChildNodesObject = SCSNodePropertiesObject->GetArrayField("ChildNodes");
+			HandleSimpleConstructionScript(BP, SCSNode, ChildNodesObject, false);
+
+		}
 
 		UE_LOG(LogTemp, Log, TEXT("TEST"));
 	}
