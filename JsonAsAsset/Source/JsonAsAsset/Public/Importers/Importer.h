@@ -58,6 +58,7 @@ private:
 		"SoundConcurrency",
 		"SubsurfaceProfile",
 		"PhysicalMaterial",
+		"BlueprintGeneratedClass",
 		"WidgetBlueprintGeneratedClass"
 	};
 

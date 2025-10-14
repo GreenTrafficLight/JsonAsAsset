@@ -29,6 +29,7 @@
 #include "Importers/MaterialInstanceConstantImporter.h"
 #include "Importers/PhysicalMaterialImporter.h"
 #include "Importers/TextureImporter.h"
+#include "Importers/Types/Blueprint/BlueprintGeneratedClassImporter.h"
 #include "Importers/Types/UMG/Blueprint/WidgetBlueprintGeneratedClassImporter.h"
 // <---- Importers
 
@@ -232,7 +233,7 @@ bool IImporter::HandleExports(TArray<TSharedPtr<FJsonValue>> Exports, FString Fi
 
 		FString Type = DataObject->GetStringField("Type");
 		FString Name = DataObject->GetStringField("Name");
-		if (Type == "WidgetBlueprintGeneratedClass") {
+		if (Type == "WidgetBlueprintGeneratedClass" || Type == "BlueprintGeneratedClass") {
 			Name = Name.LeftChop(2);
 		}
 
@@ -271,6 +272,7 @@ bool IImporter::HandleExports(TArray<TSharedPtr<FJsonValue>> Exports, FString Fi
 				else if (Type == "DataTable") Importer = new UDataTableImporter(Name, File, DataObject, LocalPackage, LocalOutermostPkg);
 				else if (Type == "SubsurfaceProfile") Importer = new USubsurfaceProfileImporter(Name, File, DataObject, LocalPackage, LocalOutermostPkg);
 
+				else if (Type == "BlueprintGeneratedClass") Importer = new UBlueprintGeneratedClassImporter(Name, File, DataObject, LocalPackage, LocalOutermostPkg, Exports);
 				else if (Type == "WidgetBlueprintGeneratedClass") Importer = new UWidgetBlueprintGeneratedClassImporter(Name, File, DataObject, LocalPackage, LocalOutermostPkg, Exports);
 
 				else Importer = nullptr;
