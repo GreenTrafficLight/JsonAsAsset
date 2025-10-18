@@ -58,6 +58,9 @@ void UBlueprintGeneratedClassImporter::HandleSimpleConstructionScript(UBlueprint
 
 		USCS_Node* SCSNode = SCS->CreateNode(ComponentClass, *SCSNodePropertiesObject->GetStringField(TEXT("InternalVariableName")));
 
+		const TSharedPtr<FJsonObject> ComponentTemplateObject = SCSNodePropertiesObject->GetObjectField(TEXT("ComponentTemplate"));
+		ReadComponentTemplate(ComponentTemplateObject);
+
 		GetObjectSerializer()->DeserializeObjectProperties(KeepPropertiesShared(SCSNodePropertiesObject,
 			{
 				"ParentComponentOrVariableName",
@@ -71,7 +74,6 @@ void UBlueprintGeneratedClassImporter::HandleSimpleConstructionScript(UBlueprint
 		else {
 			Node->AddChildNode(SCSNode);
 		}
-		
 
 		FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(BP);
 
@@ -82,6 +84,23 @@ void UBlueprintGeneratedClassImporter::HandleSimpleConstructionScript(UBlueprint
 
 		}
 
+		UE_LOG(LogTemp, Log, TEXT("TEST"));
+	}
+}
+
+void UBlueprintGeneratedClassImporter::ReadComponentTemplate(const TSharedPtr<FJsonObject> ComponentTemplateObject) {
+	const TSharedPtr<FJsonObject> ComponentTemplate = TSharedPtr<FJsonObject>(GetExportByObjectPath(ComponentTemplateObject)->AsObject());
+	const TSharedPtr<FJsonObject> ComponentTemplatePropertiesObject = ComponentTemplate->GetObjectField(TEXT("Properties"));
+
+	if (ComponentTemplatePropertiesObject->HasField(TEXT("StaticMesh")))
+	{
+		const TSharedPtr<FJsonObject> TemplateObj = ComponentTemplatePropertiesObject->GetObjectField(TEXT("StaticMesh"));
+		FString Type, Name, Path, Outer;
+		IImporter* Importer = new IImporter();
+		Importer->ParsePackageIndex(&TemplateObj, Type, Name, Path, Outer);
+
+		UObject* Object = NULL;
+		Object = Importer->DownloadWrapper(Object, TEXT("StaticMesh"), Name, Path);
 		UE_LOG(LogTemp, Log, TEXT("TEST"));
 	}
 }

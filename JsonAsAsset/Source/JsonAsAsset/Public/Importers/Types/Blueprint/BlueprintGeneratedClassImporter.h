@@ -20,4 +20,6 @@ public:
 
 private:
 	void HandleSimpleConstructionScript(UBlueprint* BP, USCS_Node* Node, const TArray<TSharedPtr<FJsonValue>> NodesObject, bool bIsRoot);
+
+	void ReadComponentTemplate(const TSharedPtr<FJsonObject> ComponentTemplateObject);
 };

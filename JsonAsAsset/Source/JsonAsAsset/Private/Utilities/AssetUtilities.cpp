@@ -12,6 +12,7 @@
 
 #include "Importers/TextureImporter.h"
 #include "Importers/MaterialParameterCollectionImporter.h"
+#include "Importers/Types/Meshes/StaticMeshImporter.h"
 
 #include "HttpModule.h"
 #include "AssetRegistryModule.h"
@@ -121,6 +122,11 @@ UObject* FAssetUtilities::GetSelectedAsset() {
 // Constructing assets ect..
 template <typename T>
 bool FAssetUtilities::ConstructAsset(const FString& Path, const FString& Type, T*& OutObject, bool& bSuccess) {
+	/* Skip if no type provided */
+	if (Type == "") {
+		return false;
+	}
+
 	// Supported Assets
 	if (Type == "Texture2D" ||
 		Type == "TextureCube" ||
@@ -139,6 +145,7 @@ bool FAssetUtilities::ConstructAsset(const FString& Path, const FString& Type, T
 		Type == "ReverbEffect" ||
 		Type == "SoundAttenuation" ||
 		Type == "SoundConcurrency" ||
+		Type == "StaticMesh" ||
 		Type == "DataTable" ||
 		Type == "SubsurfaceProfile" ||
 		Type == "MaterialFunction" ||
@@ -170,6 +177,19 @@ bool FAssetUtilities::ConstructAsset(const FString& Path, const FString& Type, T
 			if (bSuccess) OutObject = Cast<T>(Texture);
 
 			return true;
+		}
+		else if (Type == "StaticMesh") {
+			UStaticMesh* StaticMesh;
+
+			FString NewPath = Path;
+
+			FString RootName; {
+				NewPath.Split("/", nullptr, &RootName, ESearchCase::IgnoreCase, ESearchDir::FromStart);
+				RootName.Split("/", &RootName, nullptr, ESearchCase::IgnoreCase, ESearchDir::FromStart);
+			}
+
+			bSuccess = Construct_TypeStreamableRenderAsset(NewPath, StaticMesh);
+
 		}
 		else {
 			const TSharedPtr<FJsonObject> Response = API_RequestExports(Path);
@@ -283,6 +303,76 @@ bool FAssetUtilities::Construct_TypeTexture(const FString& Path, UTexture*& OutT
 	}
 
 	OutTexture = Texture;
+
+	return true;
+}
+
+bool FAssetUtilities::Construct_TypeStreamableRenderAsset(const FString& Path, UStaticMesh*& OutStaticMesh) {
+	if (Path.IsEmpty())
+		return false;
+
+	FString FetchPath = Path;
+	if (Path.StartsWith("/Game/Plugins/"))
+		FetchPath = FetchPath.Replace(TEXT("/Game/Plugins/"), TEXT("/"));
+
+	TSharedPtr<FJsonObject> JsonObject = API_RequestExports(FetchPath);
+	if (JsonObject.Get() == nullptr)
+		return false;
+
+	TArray<TSharedPtr<FJsonValue>> Response = JsonObject->GetArrayField("jsonOutput");
+	if (Response.Num() == 0)
+		return false;
+
+	const UJsonAsAssetSettings* Settings = GetDefault<UJsonAsAssetSettings>();
+	TSharedPtr<FJsonObject> JsonExport = Response[2]->AsObject();
+
+	UStaticMesh* StaticMesh = nullptr;
+	TArray<uint8> Data = TArray<uint8>();
+
+	/* ~~~~~~~~~~~~~~~ Download Data ~~~~~~~~~~~~ */
+	FHttpModule* HttpModule = &FHttpModule::Get();
+	TSharedRef<IHttpRequest, ESPMode::NotThreadSafe> HttpRequest = HttpModule->CreateRequest();
+
+	HttpRequest->SetURL(Settings->Url + "/api/export?path=" + FetchPath);
+	HttpRequest->SetHeader("content-type", "application/octet-stream");
+	HttpRequest->SetVerb(TEXT("GET"));
+
+	const TSharedPtr<IHttpResponse, ESPMode::ThreadSafe> HttpResponse = FRemoteUtilities::ExecuteRequestSync(HttpRequest);
+	if (!HttpResponse.IsValid() || HttpResponse->GetResponseCode() != 200)
+		return false;
+
+	Data = HttpResponse->GetContent();
+	if (Data.Num() == 0)
+		return false;
+
+	FString PackagePath;
+	FString AssetName; {
+		Path.Split(".", &PackagePath, &AssetName);
+	}
+
+	UPackage* Package = CreatePackage(nullptr, *PackagePath);
+	UPackage* OutermostPkg = Package->GetOutermost();
+	Package->FullyLoad();
+
+	const UStaticMeshImporter* Importer = new UStaticMeshImporter(AssetName, Path, JsonExport, Package, OutermostPkg);
+
+	Importer->ImportStaticMesh(StaticMesh, Data, JsonExport);
+
+	if (StaticMesh == nullptr) {
+		return false;
+	}
+
+	Package->SetDirtyFlag(true);
+	StaticMesh->PostEditChange();
+	StaticMesh->AddToRoot();
+	Package->FullyLoad();
+
+	/* Save texture */
+	if (Settings->bAllowPackageSaving) {
+		const FString PackageName = Package->GetName();
+		const FString PackageFileName = FPackageName::LongPackageNameToFilename(PackageName, FPackageName::GetAssetPackageExtension());
+		UPackage::SavePackage(Package, nullptr, RF_Standalone, *PackageFileName, GWarn, nullptr, false, true, SAVE_NoError);
+	}
 
 	return true;
 }

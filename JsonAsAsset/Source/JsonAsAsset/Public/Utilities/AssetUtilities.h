@@ -2,6 +2,7 @@
 
 #pragma once
 #include "Engine/Texture.h"
+#include "Engine/StaticMesh.h"
 #include "Dom/JsonObject.h"
 
 template <typename T>
@@ -38,6 +39,7 @@ public:
 	template <class T = UObject>
 	static bool ConstructAsset(const FString& Path, const FString& Type, T*& OutObject, bool& bSuccess);
 	static bool Construct_TypeTexture(const FString& Path, UTexture*& OutTexture);
+	static bool Construct_TypeStreamableRenderAsset(const FString& Path, UStaticMesh*& OutStaticMesh);
 
 	static void CreatePlugin(FString PluginName);
 
