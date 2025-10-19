@@ -10,6 +10,15 @@
 
 JsonAsAsset is licensed under the MIT License, read more in the [LICENSE](https://github.com/JsonAsAsset/JsonAsAsset/blob/main/LICENSE) file. The plugin also uses [Detex](https://github.com/hglm/detex) and [NVIDIA Texture Tools](https://docs.nvidia.com/texture-tools/index.html).
 
+<a name="cloud-server"></a>
+## Cloud Server
+
+A `Cloud Server` is a server that hosts a Web API, allowing JsonAsAsset to communicate directly with the game files. JsonAsAsset will automate importing assets that assets reference. **It supports all supported asset types except AnimSequence/AnimMontages.** Use and setup a app that has a built-in cloud server.
+
+The following apps can host a Cloud Server:
+
+<a href="https://github.com/Tectors/j0.dev"><img src="https://github.com/user-attachments/assets/2c450d60-6573-4545-8b20-f6190a87827e" width="126" height="126"/></a>
+
 ## ✨ Contributors
 
 Thanks go to these wonderful people:
