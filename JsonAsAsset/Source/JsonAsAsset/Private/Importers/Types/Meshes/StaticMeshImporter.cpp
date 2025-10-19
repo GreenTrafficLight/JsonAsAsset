@@ -13,191 +13,139 @@
 #include "Importers/Importer.h"
 
 bool UStaticMeshImporter::ImportStaticMesh(UStaticMesh*& OutStaticMesh, TArray<uint8>& Data, const TSharedPtr<FJsonObject>& Properties) const  {
-	const TSharedPtr<FJsonObject> RenderDataObject = Properties->GetObjectField("RenderData");
-	const TArray<TSharedPtr<FJsonValue>> LODsObject = RenderDataObject->GetArrayField(TEXT("LODs"));
-	
-	UE_LOG(LogTemp, Log, TEXT("AAAAAAAAAAAAAAAAA"));
+	UStaticMesh* StaticMesh = nullptr;
+	StaticMesh = FindObject<UStaticMesh>(Package, *FileName);
 
-	FMemoryReader Reader(Data, false);
+	if (!StaticMesh) {
+		StaticMesh = NewObject<UStaticMesh>(OutermostPkg, *FileName, RF_Public | RF_Standalone);
 
-	// TO DO : Handle LODs by putting a loop here
-	const TSharedPtr<FJsonObject> LODObject = LODsObject[0]->AsObject();
+		const TSharedPtr<FJsonObject> RenderDataObject = Properties->GetObjectField("RenderData");
+		const TArray<TSharedPtr<FJsonValue>> LODsObject = RenderDataObject->GetArrayField(TEXT("LODs"));
+		int32 NumLODs = LODsObject.Num();
 
-	uint32 IndexCount = 0;
-	Reader << IndexCount;
-	uint32 VertexCount = 0;
-	Reader << VertexCount;
+		FMemoryReader Reader(Data, false);
 
-	TArray<uint16> RawIndices;
-	RawIndices.SetNum(IndexCount);
-	Reader.Serialize(RawIndices.GetData(), IndexCount * sizeof(uint16));
+		// TO DO : Handle LODs by putting a loop here
+		for (int32 lodIndex = 0; lodIndex < 1; lodIndex++) {
+			const TSharedPtr<FJsonObject> LODObject = LODsObject[lodIndex]->AsObject();
 
-	TArray<int32> Indices;
-	Indices.Reserve(RawIndices.Num());
+			uint32 IndexCount = 0;
+			Reader << IndexCount;
+			uint32 VertexCount = 0;
+			Reader << VertexCount;
 
-	for (uint16 Idx : RawIndices)
-	{
-		Indices.Add(static_cast<int32>(Idx));
-	}
+			TArray<uint16> RawIndices;
+			RawIndices.SetNum(IndexCount);
+			Reader.Serialize(RawIndices.GetData(), IndexCount * sizeof(uint16));
 
+			TArray<int32> Indices;
+			Indices.Reserve(RawIndices.Num());
 
-	TArray<float> RawVertexData;
-	RawVertexData.SetNum(VertexCount * 3);
-	Reader.Serialize(RawVertexData.GetData(), RawVertexData.Num() * sizeof(float));
+			for (uint16 Idx : RawIndices)
+			{
+				Indices.Add(static_cast<int32>(Idx));
+			}
 
-	TArray<FVector> VertexData;
-	VertexData.SetNum(VertexCount);
-	for (uint32 i = 0; i < VertexCount; ++i)
-	{
-		VertexData[i].X = RawVertexData[i * 3 + 0];
-		VertexData[i].Y = RawVertexData[i * 3 + 1];
-		VertexData[i].Z = RawVertexData[i * 3 + 2];
-	}
-	
-	const TArray<TSharedPtr<FJsonValue>> SectionsObject = LODObject->GetArrayField(TEXT("Sections"));
+			const int32 Stride = 13;
+			TArray<float> RawVertexData;
+			RawVertexData.SetNum(VertexCount * Stride);
+			Reader.Serialize(RawVertexData.GetData(), RawVertexData.Num() * sizeof(float));
 
-	// TO DO : Handle sections
-	const TSharedPtr<FJsonObject> Section = SectionsObject[0]->AsObject();
-	int32 MaterialIndex = Section->GetIntegerField(TEXT("MaterialIndex"));
-	int32 FirstIndex = Section->GetIntegerField(TEXT("FirstIndex"));
-	int32 NumTriangles = Section->GetIntegerField(TEXT("NumTriangles")) * 3;
+			TArray<FVector> Positions;
+			TArray<FVector4> Normals;
+			TArray<FVector4> Tangents;
+			TArray<FVector2D> UVs;
+			Positions.SetNum(VertexCount);
+			Normals.SetNum(VertexCount);
+			Tangents.SetNum(VertexCount);
+			UVs.SetNum(VertexCount);
 
-	UStaticMesh* StaticMesh = NewObject<UStaticMesh>(OutermostPkg, *FileName, RF_Public | RF_Standalone);
-	StaticMesh->StaticMaterials.Add(FStaticMaterial());
+			for (uint32 i = 0; i < VertexCount; ++i)
+			{
+				int32 Offset = i * Stride;
+				Positions[i] = FVector(
+					RawVertexData[Offset + 0],
+					RawVertexData[Offset + 1],
+					RawVertexData[Offset + 2]);
 
-	new(StaticMesh->SourceModels) FStaticMeshSourceModel();
-	FStaticMeshSourceModel& SrcModel = StaticMesh->SourceModels[0];
+				Normals[i] = FVector4(
+					RawVertexData[Offset + 3],
+					RawVertexData[Offset + 4],
+					RawVertexData[Offset + 5],
+					RawVertexData[Offset + 6]);
 
-	FRawMesh RawMesh;
-	SrcModel.RawMeshBulkData->LoadRawMesh(RawMesh);
+				Tangents[i] = FVector4(
+					RawVertexData[Offset + 7],
+					RawVertexData[Offset + 8],
+					RawVertexData[Offset + 9],
+					RawVertexData[Offset + 10]);
 
-	///
-	/* EXAMPLE WORKING CODE
-	// --- 1. Vertices ---
-	RawMesh.VertexPositions.Add(FVector(0, 0, 0));
-	RawMesh.VertexPositions.Add(FVector(100, 0, 0));
-	RawMesh.VertexPositions.Add(FVector(0, 100, 0));
+				UVs[i] = FVector2D(
+					RawVertexData[Offset + 11],
+					RawVertexData[Offset + 12]);
+			}
 
-	// --- 2. Indices (1 triangle = 3 wedges) ---
-	RawMesh.WedgeIndices.Add(0);
-	RawMesh.WedgeIndices.Add(1);
-	RawMesh.WedgeIndices.Add(2);
+			const TArray<TSharedPtr<FJsonValue>> SectionsObject = LODObject->GetArrayField(TEXT("Sections"));
+			int32 NumSections = SectionsObject.Num();
 
-	// --- 3. UVs ---
-	RawMesh.WedgeTexCoords[0].Add(FVector2D(0.f, 0.f));
-	RawMesh.WedgeTexCoords[0].Add(FVector2D(1.f, 0.f));
-	RawMesh.WedgeTexCoords[0].Add(FVector2D(0.f, 1.f));
+			new(StaticMesh->SourceModels) FStaticMeshSourceModel();
+			FStaticMeshSourceModel& SrcModel = StaticMesh->SourceModels[lodIndex];
 
-	// --- 4. Tangents & normals (must match wedge count = 3) ---
-	for (int32 i = 0; i < 3; ++i)
-	{
-		RawMesh.WedgeTangentX.Add(FVector(1, 0, 0));
-		RawMesh.WedgeTangentY.Add(FVector(0, 1, 0));
-		RawMesh.WedgeTangentZ.Add(FVector(0, 0, 1));
-	}
+			FRawMesh RawMesh;
+			SrcModel.RawMeshBulkData->LoadRawMesh(RawMesh);
 
-	// --- 5. Face material indices and smoothing masks (one per face = one triangle) ---
-	RawMesh.FaceMaterialIndices.Add(0);
-	RawMesh.FaceSmoothingMasks.Add(0);
-	*/
-	///
+			RawMesh.VertexPositions = Positions;
 
-	///
-	/* EXAMPLE WORKING CODE
-	TArray<FVector> CubeVertices = {
-		FVector(-50, -50, -50),
-		FVector(-50,  50, -50),
-		FVector(50,  50, -50),
-		FVector(50, -50, -50),
-		FVector(-50, -50, 50),
-		FVector(-50,  50, 50),
-		FVector(50,  50, 50),
-		FVector(50, -50, 50)
-	};
+			for (int32 SectionIndex = 0; SectionIndex < 1; SectionIndex++) {
+				StaticMesh->StaticMaterials.Add(FStaticMaterial());
 
-	// Define cube triangles
-	TArray<int32> CubeIndices = {
-		0,1,2, 0,2,3,  // Bottom
-		4,6,5, 4,7,6,  // Top
-		0,4,5, 0,5,1,  // Left
-		3,2,6, 3,6,7,  // Right
-		1,5,6, 1,6,2,  // Front
-		0,3,7, 0,7,4   // Back
-	};
+				const TSharedPtr<FJsonObject> Section = SectionsObject[SectionIndex]->AsObject();
+				int32 MaterialIndex = Section->GetIntegerField(TEXT("MaterialIndex"));
+				int32 FirstIndex = Section->GetIntegerField(TEXT("FirstIndex"));
+				int32 NumTriangles = Section->GetIntegerField(TEXT("NumTriangles"));
 
-	RawMesh.VertexPositions = CubeVertices;
+				for (int32 i = FirstIndex; i < FirstIndex + NumTriangles; i++)
+				{
+					for (int32 j = 0; j < 3; j++) {
+						int32 vertexIndex = Indices[i * 3 + j];
 
-	for (int32 i = 0; i < CubeIndices.Num(); i += 3)
-	{
-		RawMesh.WedgeIndices.Add(CubeIndices[i]);
-		RawMesh.WedgeIndices.Add(CubeIndices[i + 1]);
-		RawMesh.WedgeIndices.Add(CubeIndices[i + 2]);
+						RawMesh.WedgeIndices.Add(vertexIndex);
 
-		RawMesh.FaceMaterialIndices.Add(0);
-		RawMesh.FaceSmoothingMasks.Add(0);
-	}
+						RawMesh.WedgeTexCoords[0].Add(UVs[vertexIndex]);
 
-	for (int32 i = 0; i < CubeIndices.Num(); ++i)
-	{
-		RawMesh.WedgeTangentX.Add(FVector::ZeroVector);
-		RawMesh.WedgeTangentY.Add(FVector::ZeroVector);
-		RawMesh.WedgeTangentZ.Add(FVector::UpVector);
-		RawMesh.WedgeTexCoords[0].Add(FVector2D::ZeroVector);
-		RawMesh.WedgeColors.Add(FColor::White);
-	}
-	*/
-	///
+						RawMesh.WedgeTangentX.Add(FVector(Tangents[vertexIndex].X, Tangents[vertexIndex].Y, Tangents[vertexIndex].Z));
+						RawMesh.WedgeTangentZ.Add(FVector(Normals[vertexIndex].X, Normals[vertexIndex].Y, Normals[vertexIndex].Z));
 
-	RawMesh.VertexPositions = VertexData;
+						RawMesh.WedgeColors.Add(FColor::White);
+					}
 
-	for (int32 i = FirstIndex; i < FirstIndex + NumTriangles; i += 3)
-	{
-		RawMesh.WedgeIndices.Add(Indices[i + 0]);
-		RawMesh.WedgeIndices.Add(Indices[i + 1]);
-		RawMesh.WedgeIndices.Add(Indices[i + 2]);
+					RawMesh.FaceMaterialIndices.Add(MaterialIndex);
+					RawMesh.FaceSmoothingMasks.Add(1);
+				}
+			}
 
-		// Add dummy UVs/normals/colors for each wedge
-		RawMesh.WedgeTexCoords[0].Add(FVector2D::ZeroVector);
-		RawMesh.WedgeTexCoords[0].Add(FVector2D::ZeroVector);
-		RawMesh.WedgeTexCoords[0].Add(FVector2D::ZeroVector);
-
-		RawMesh.WedgeTangentX.Add(FVector::ForwardVector);
-		RawMesh.WedgeTangentX.Add(FVector::ForwardVector);
-		RawMesh.WedgeTangentX.Add(FVector::ForwardVector);
-
-		RawMesh.WedgeTangentZ.Add(FVector::UpVector);
-		RawMesh.WedgeTangentZ.Add(FVector::UpVector);
-		RawMesh.WedgeTangentZ.Add(FVector::UpVector);
-
-		RawMesh.WedgeColors.Add(FColor::White);
-		RawMesh.WedgeColors.Add(FColor::White);
-		RawMesh.WedgeColors.Add(FColor::White);
-
-		RawMesh.FaceMaterialIndices.Add(MaterialIndex);
-		RawMesh.FaceSmoothingMasks.Add(0);
-	}
-
-	SrcModel.RawMeshBulkData->SaveRawMesh(RawMesh);
-
-	TArray<FText> BuildErrors;
-	StaticMesh->Build(false, &BuildErrors);
-
-	if (BuildErrors.Num() > 0)
-	{
-		for (const FText& Err : BuildErrors)
-		{
-			UE_LOG(LogTemp, Warning, TEXT("Build error: %s"), *Err.ToString());
+			SrcModel.RawMeshBulkData->SaveRawMesh(RawMesh);
 		}
-	}
 
+		TArray<FText> BuildErrors;
+		StaticMesh->Build(false, &BuildErrors);
 
-	ImportStaticMesh_Data(StaticMesh, Properties);
+		if (BuildErrors.Num() > 0)
+		{
+			for (const FText& Err : BuildErrors)
+			{
+				UE_LOG(LogTemp, Warning, TEXT("Build error: %s"), *Err.ToString());
+			}
+		}
 
-	UE_LOG(LogTemp, Log, TEXT("TTTTTTTTTTTTTTTTT"));
+		ImportStaticMesh_Data(StaticMesh, Properties);
 
-	if (StaticMesh) {
-		OutStaticMesh = StaticMesh;
-		return true;
+		UE_LOG(LogTemp, Log, TEXT("TTTTTTTTTTTTTTTTT"));
+
+		if (StaticMesh) {
+			OutStaticMesh = StaticMesh;
+			return true;
+		}
 	}
 
 	return false;
