@@ -7,7 +7,7 @@
 #include "UObject/NoExportTypes.h"
 #include "UObject/EnumProperty.h"
 #include "GameplayTagContainer.h"
-#include "Importers/Importer.h"
+#include "Importers/Constructor/Importer.h"
 #include "Utilities/Serializers/ObjectUtilities.h"
 #include "UObject/TextProperty.h"
 

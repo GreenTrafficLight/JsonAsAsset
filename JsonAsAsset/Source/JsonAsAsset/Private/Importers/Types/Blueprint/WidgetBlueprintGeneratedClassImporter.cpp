@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Importers/Types/UMG/Blueprint/WidgetBlueprintGeneratedClassImporter.h"
+#include "Importers/Types/Blueprint/WidgetBlueprintGeneratedClassImporter.h"
 
 #include "WidgetBlueprint.h"
 #include "WidgetBlueprintFactory.h"
@@ -25,7 +25,7 @@
 #include "Utilities/AssetUtilities.h"
 #include "Utilities/EngineUtilities.h"
 
-#include "Importers/Importer.h"
+#include "Importers/Constructor/Importer.h"
 
 #include "Kismet2/KismetEditorUtilities.h"
 

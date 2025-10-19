@@ -10,8 +10,6 @@
 
 #include "Serialization/MemoryReader.h"
 
-#include "Importers/Importer.h"
-
 bool UStaticMeshImporter::ImportStaticMesh(UStaticMesh*& OutStaticMesh, TArray<uint8>& Data, const TSharedPtr<FJsonObject>& Properties) const  {
 	UStaticMesh* StaticMesh = nullptr;
 	StaticMesh = FindObject<UStaticMesh>(Package, *FileName);

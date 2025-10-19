@@ -7,7 +7,7 @@
 #include "Engine/SCS_Node.h"
 #include "Engine/SimpleConstructionScript.h"
 
-#include "Importer.h"
+#include "Importers/Constructor/Importer.h"
 
 class UBlueprintGeneratedClassImporter : public IImporter {
 public:

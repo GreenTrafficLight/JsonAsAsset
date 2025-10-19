@@ -3,7 +3,7 @@
 #pragma once
 
 #include "UObject/StructOnScope.h"
-#include "Importer.h"
+#include "Importers/Constructor/Importer.h"
 
 class UDataTableImporter : public IImporter {
 public:

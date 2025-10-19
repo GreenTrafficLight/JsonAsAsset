@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "Importer.h"
+#include "Importers/Constructor/Importer.h"
 
 class USoundAttenuationImporter : public IImporter {
 public:

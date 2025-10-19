@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "Importer.h"
+#include "Importers/Constructor/Importer.h"
 
 class UMaterialInstanceConstantImporter : public IImporter {
 public:

@@ -5,7 +5,7 @@
 #include "UObject/StructOnScope.h"
 #include "WidgetBlueprint.h"
 #include "Components/PanelWidget.h"
-#include "Importer.h"
+#include "Importers/Constructor/Importer.h"
 
 class UWidgetBlueprintGeneratedClassImporter : public IImporter {
 public:

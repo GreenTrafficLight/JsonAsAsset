@@ -3,7 +3,7 @@
 #pragma once
 
 #include "UObject/StructOnScope.h"
-#include "Importer.h"
+#include "Importers/Constructor/Importer.h"
 #include "Engine/StaticMesh.h"
 
 class UStaticMeshImporter : public IImporter {
