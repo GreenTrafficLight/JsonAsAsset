@@ -3,12 +3,13 @@
 #pragma once
 
 #include "Dom/JsonObject.h"
-#include "Utilities/ObjectUtilities.h"
-#include "Utilities/PropertyUtilities.h"
+#include "Utilities/Serializers/ObjectUtilities.h"
+#include "Utilities/Serializers/PropertyUtilities.h"
 #include "Widgets/Notifications/SNotificationList.h"
+#include "Utilities/Serializers/SerializerContainer.h"
 
 // Global handler for converting JSON to assets
-class IImporter {
+class IImporter : public USerializerContainer {
 public:
 	IImporter() {
 	}
@@ -111,11 +112,11 @@ public:
 	*/
 	TSharedPtr<FJsonObject> GetExport(FJsonObject* PackageIndex);
 
-	// Easier way to add notifications to Editor
-	virtual void AppendNotification(const FText& Text, const FText& SubText, float ExpireDuration, SNotificationItem::ECompletionState CompletionState, bool bUseSuccessFailIcons = false, float WidthOverride = 500);
-	virtual void AppendNotification(const FText& Text, const FText& SubText, float ExpireDuration, const FSlateBrush* SlateBrush, SNotificationItem::ECompletionState CompletionState, bool bUseSuccessFailIcons = false, float WidthOverride = 500);
+public:
+	UObject* ParentObject;
 
 protected:
+	/* This is called at the end of asset creation, bringing the user to the asset and fully loading it */
 	bool HandleAssetCreation(UObject* Asset) const;
 	void SavePackage();
 
@@ -126,7 +127,7 @@ protected:
 public:
 	// Wrapper for remote downloading
 	template <class T = UObject>
-	T* DownloadWrapper(T* InObject, FString Type, FString Name, FString Path);
+	static T* DownloadWrapper(T* InObject, FString Type, FString Name, FString Path);
 
 protected:
 

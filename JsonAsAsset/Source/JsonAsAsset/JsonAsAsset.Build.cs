@@ -18,6 +18,7 @@ public class JsonAsAsset : ModuleRules
 			"RenderCore",
 			"HTTP",
             "DesktopPlatform",
+            "GameplayTags",
         });
 		
 		PrivateDependencyModuleNames.AddRange(new string[]

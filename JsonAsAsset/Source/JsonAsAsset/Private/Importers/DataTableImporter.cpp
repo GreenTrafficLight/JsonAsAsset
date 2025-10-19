@@ -5,6 +5,7 @@
 #include "Dom/JsonObject.h"
 #include "Engine/DataTable.h"
 #include "Utilities/AssetUtilities.h"
+#include "Utilities/EngineUtilities.h"
 
 // Shout-out to UEAssetToolkit
 bool UDataTableImporter::ImportData() {

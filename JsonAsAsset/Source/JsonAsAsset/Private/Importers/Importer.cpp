@@ -34,6 +34,7 @@
 // <---- Importers
 
 #include "Utilities/AssetUtilities.h"
+#include "Utilities/EngineUtilities.h"
 #include "Widgets/Notifications/SNotificationList.h"
 #include "Framework/Notifications/NotificationManager.h"
 #include "Styling/SlateIconFinder.h"
@@ -378,37 +379,6 @@ TSharedPtr<FJsonValue> IImporter::GetExportByObjectPath(const TSharedPtr<FJsonOb
 	}
 
 	return AllJsonObjects[FCString::Atod(*StringIndex)];
-}
-
-void IImporter::AppendNotification(const FText& Text, const FText& SubText, float ExpireDuration, SNotificationItem::ECompletionState CompletionState, bool bUseSuccessFailIcons, float WidthOverride) {
-	FNotificationInfo Info = FNotificationInfo(Text);
-	Info.ExpireDuration = ExpireDuration;
-	Info.bUseLargeFont = false;
-	Info.bUseSuccessFailIcons = bUseSuccessFailIcons;
-	Info.WidthOverride = FOptionalSize(WidthOverride);
-
-	Info.Hyperlink = FSimpleDelegate::CreateStatic([]() {
-	});
-	Info.HyperlinkText = SubText;
-
-	const TSharedPtr<SNotificationItem> NotificationPtr = FSlateNotificationManager::Get().AddNotification(Info);
-	NotificationPtr->SetCompletionState(CompletionState);
-}
-
-void IImporter::AppendNotification(const FText& Text, const FText& SubText, float ExpireDuration, const FSlateBrush* SlateBrush, SNotificationItem::ECompletionState CompletionState, bool bUseSuccessFailIcons, float WidthOverride) {
-	FNotificationInfo Info = FNotificationInfo(Text);
-	Info.ExpireDuration = ExpireDuration;
-	Info.bUseLargeFont = false;
-	Info.bUseSuccessFailIcons = bUseSuccessFailIcons;
-	Info.WidthOverride = FOptionalSize(WidthOverride);
-	Info.Image = SlateBrush;
-
-	Info.Hyperlink = FSimpleDelegate::CreateStatic([]() {
-	});
-	Info.HyperlinkText = SubText;
-
-	const TSharedPtr<SNotificationItem> NotificationPtr = FSlateNotificationManager::Get().AddNotification(Info);
-	NotificationPtr->SetCompletionState(CompletionState);
 }
 
 #undef LOCTEXT_NAMESPACE

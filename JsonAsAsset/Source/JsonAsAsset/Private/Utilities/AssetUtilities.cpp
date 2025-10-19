@@ -189,7 +189,9 @@ bool FAssetUtilities::ConstructAsset(const FString& Path, const FString& Type, T
 			}
 
 			bSuccess = Construct_TypeStreamableRenderAsset(NewPath, StaticMesh);
+			if (bSuccess) OutObject = Cast<T>(StaticMesh);
 
+			return true;
 		}
 		else {
 			const TSharedPtr<FJsonObject> Response = API_RequestExports(Path);
@@ -373,6 +375,8 @@ bool FAssetUtilities::Construct_TypeStreamableRenderAsset(const FString& Path, U
 		const FString PackageFileName = FPackageName::LongPackageNameToFilename(PackageName, FPackageName::GetAssetPackageExtension());
 		UPackage::SavePackage(Package, nullptr, RF_Standalone, *PackageFileName, GWarn, nullptr, false, true, SAVE_NoError);
 	}
+
+	OutStaticMesh = StaticMesh;
 
 	return true;
 }
