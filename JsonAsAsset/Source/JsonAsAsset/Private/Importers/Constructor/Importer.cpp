@@ -207,10 +207,10 @@ bool IImporter::HandleAssetCreation(UObject* Asset) const {
 	return true;
 }
 
-//template TObjectPtr<UObject> IImporter::DownloadWrapper<UObject>(TObjectPtr<UObject> Obj, FString PropertyClassName, FString AssetName, FString PackagePath);
+template TObjectPtr<UObject> IImporter::DownloadWrapper<UObject>(TObjectPtr<UObject> Obj, FString PropertyClassName, FString AssetName, FString PackagePath);
 
 template <typename T>
-T* IImporter::DownloadWrapper(T* InObject, FString Type, FString Name, FString Path) {
+TObjectPtr<T> IImporter::DownloadWrapper(TObjectPtr<T> InObject, FString Type, const FString Name, const FString Path) {
 	const UJsonAsAssetSettings* Settings = GetDefault<UJsonAsAssetSettings>();
 
 	bool bEnableLocalFetch = Settings->bEnableLocalFetch;
@@ -275,14 +275,14 @@ template void IImporter::LoadObject<UMaterialFunctionInterface>(const TSharedPtr
 template void IImporter::LoadObject<USoundNode>(const TSharedPtr<FJsonObject>*, TObjectPtr<USoundNode>&);*/
 
 template <typename T>
-void IImporter::LoadObject(const TSharedPtr<FJsonObject>* PackageIndex, T*& Object) {
+void IImporter::LoadObject(const TSharedPtr<FJsonObject>* PackageIndex, TObjectPtr<T>& Object) {
 	FString ObjectType, ObjectName, ObjectPath, Outer;
 	ParsePackageIndex(PackageIndex, ObjectType, ObjectName, ObjectPath, Outer);
 
 #pragma warning( push )
 #pragma warning( disable : 4101) // Hide LoadObject Fail
 	/* Try to load object using the object path and the object name combined */
-	T* LoadedObject = Cast<T>(StaticLoadObject(T::StaticClass(), nullptr, *(ObjectPath + "." + ObjectName)));
+	TObjectPtr<T> LoadedObject = Cast<T>(StaticLoadObject(T::StaticClass(), nullptr, *(ObjectPath + "." + ObjectName)));
 
 	/* Material Expression case */
 	if (!LoadedObject && ObjectName.Contains("MaterialExpression")) {
@@ -303,7 +303,7 @@ void IImporter::LoadObject(const TSharedPtr<FJsonObject>* PackageIndex, T*& Obje
 //template TArray<TObjectPtr<UCurveLinearColor>> IImporter::LoadObject<UCurveLinearColor>(const TArray<TSharedPtr<FJsonValue>>&, TArray<TObjectPtr<UCurveLinearColor>>);
 
 template <typename T>
-TArray<T*> IImporter::LoadObject(const TArray<TSharedPtr<FJsonValue>>& PackageArray, TArray<T*> Array) {
+TArray<TObjectPtr<T>> IImporter::LoadObject(const TArray<TSharedPtr<FJsonValue>>& PackageArray, TArray<TObjectPtr<T>> Array) {
 	for (const TSharedPtr<FJsonValue> ArrayElement : PackageArray) {
 		const TSharedPtr<FJsonObject> Ptr = ArrayElement->AsObject();
 

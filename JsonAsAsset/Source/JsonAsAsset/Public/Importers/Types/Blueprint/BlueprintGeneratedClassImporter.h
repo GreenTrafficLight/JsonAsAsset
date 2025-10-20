@@ -9,11 +9,11 @@
 
 #include "Importers/Constructor/Importer.h"
 
-class UBlueprintGeneratedClassImporter : public IImporter {
+class IBlueprintGeneratedClassImporter : public IImporter {
 public:
 
-	UBlueprintGeneratedClassImporter(const FString& FileName, const FString& FilePath, const TSharedPtr<FJsonObject>& JsonObject, UPackage* Package, UPackage* OutermostPkg, const TArray<TSharedPtr<FJsonValue>>& AllJsonObjects) :
-		IImporter(FileName, FilePath, JsonObject, Package, OutermostPkg, AllJsonObjects) {
+	IBlueprintGeneratedClassImporter(const FString& AssetName, const FString& FilePath, const TSharedPtr<FJsonObject>& JsonObject, UPackage* Package, UPackage* OutermostPkg, const TArray<TSharedPtr<FJsonValue>>& AllJsonObjects, UClass* AssetClass) :
+		IImporter(AssetName, FilePath, JsonObject, Package, OutermostPkg, AllJsonObjects, AssetClass) {
 	}
 
 	virtual bool Import() override;
@@ -23,3 +23,7 @@ private:
 
 	void ReadComponentTemplate(UActorComponent* ComponentTemplate, const TSharedPtr<FJsonObject> ComponentTemplateObjectPath);
 };
+
+REGISTER_IMPORTER(IBlueprintGeneratedClassImporter, (TArray<FString>{
+	TEXT("BlueprintGeneratedClass"),
+}), TEXT("Blueprint Assets"));

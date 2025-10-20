@@ -12,3 +12,8 @@ public:
 
 	virtual bool Import() override;
 };
+
+REGISTER_IMPORTER(UAnimationBaseImporter, (TArray<FString>{
+	TEXT("AnimSequence"),
+	TEXT("AnimMontage")
+}), TEXT("Animation Assets"));

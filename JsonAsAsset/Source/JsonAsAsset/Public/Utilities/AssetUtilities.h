@@ -5,6 +5,8 @@
 #include "Engine/StaticMesh.h"
 #include "Dom/JsonObject.h"
 
+#include "Compatibility.h"
+
 class FAssetUtilities {
 public:
 	/*
@@ -26,8 +28,10 @@ public:
 	// Purpose: Wrapping references before they get set
 	//          to import them
 public:
+	/* Importing assets from Cloud */
 	template <class T = UObject>
-	static bool ConstructAsset(const FString& Path, const FString& Type, T*& OutObject, bool& bSuccess);
+	static bool ConstructAsset(const FString& Path, const FString& Type, TObjectPtr<T>& OutObject, bool& bSuccess);
+
 	static bool Construct_TypeTexture(const FString& Path, UTexture*& OutTexture);
 	static bool Construct_TypeStreamableRenderAsset(const FString& Path, UStaticMesh*& OutStaticMesh);
 

@@ -1,4 +1,4 @@
-// Copyright Epic Games, Inc. All Rights Reserved.
+/* Copyright JsonAsAsset Contributors 2024-2025 */
 
 #include "Utilities/Serializers/PropertyUtilities.h"
 
@@ -6,6 +6,7 @@
 #include "UObject/UnrealType.h"
 #include "UObject/NoExportTypes.h"
 #include "UObject/EnumProperty.h"
+
 #include "GameplayTagContainer.h"
 #include "Importers/Constructor/Importer.h"
 #include "Utilities/Serializers/ObjectUtilities.h"
@@ -136,7 +137,7 @@ void UPropertySerializer::DeserializePropertyValue(UProperty* Property, const TS
 				FString PackagePath;
 				FString AssetName;
 				PathString.Split(".", &PackagePath, &AssetName);
-				UObject* T = NULL;
+				TObjectPtr<UObject> T;
 
 				FString PropertyClassName = SoftObjectProperty->PropertyClass->GetName();
 
@@ -146,7 +147,7 @@ void UPropertySerializer::DeserializePropertyValue(UProperty* Property, const TS
 	}
 	else if (const UObjectPropertyBase* ObjectProperty = CastField<const UObjectPropertyBase>(Property)) {
 		/* Need to serialize full UObject for object property */
-		UObject* Object = nullptr;
+		TObjectPtr<UObject> Object;
 
 		if (NewJsonValue->IsNull()) {
 			ObjectProperty->SetObjectPropertyValue(OutValue, nullptr);
@@ -178,7 +179,7 @@ void UPropertySerializer::DeserializePropertyValue(UProperty* Property, const TS
 					}
 				}
 
-				if (Object != nullptr && !Cast<UActorComponent>(Object)) {
+				if (Object != nullptr && !Cast<UActorComponent>(Object.Get())) {
 					ObjectProperty->SetObjectPropertyValue(OutValue, Object);
 				}
 
@@ -304,7 +305,7 @@ void UPropertySerializer::DeserializePropertyValue(UProperty* Property, const TS
 					FString PackagePath;
 					FString AssetName;
 					PathString.Split(".", &PackagePath, &AssetName);
-					UObject* T = NULL;
+					TObjectPtr<UObject> T;
 
 					FString PropertyClassName = "DataAsset";
 

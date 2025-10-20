@@ -2,10 +2,11 @@
 
 #pragma once
 
+#include "Utilities/Compatibility.h"
+#include "Utilities/EngineUtilities.h"
+#include "Utilities/MathUtilities.h"
 #include "Dom/JsonObject.h"
-#include "Utilities/Serializers/ObjectUtilities.h"
-#include "Utilities/Serializers/PropertyUtilities.h"
-#include "Widgets/Notifications/SNotificationList.h"
+#include "CoreMinimal.h"
 #include "Utilities/Serializers/SerializerContainer.h"
 
 FORCEINLINE uint32 GetTypeHash(const TArray<FString>& Array) {
@@ -91,16 +92,13 @@ public:
 
 protected:
 	/* Class variables ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ */
-	FORCEINLINE UObjectSerializer* GetObjectSerializer() const { return GObjectSerializer; }
 	TSharedPtr<FJsonObject> JsonObject;
 	FString FilePath;
 	
-	UPackage* Package;
-	UPackage* OutermostPkg;
-
 	TSharedPtr<FJsonObject> AssetData;
 	UClass* AssetClass;
 	FString AssetName;
+
 	/* ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ */
 
 public:
@@ -141,13 +139,7 @@ public:
 		return false;
 	}
 
-protected:
-	UPROPERTY()
-		UPropertySerializer* PropertySerializer;
 private:
-	UPROPERTY()
-	UObjectSerializer* GObjectSerializer;
-
 	TArray<FString> AcceptedTypes = {
 		"CurveTable",
 		"CurveFloat",
@@ -174,12 +166,12 @@ private:
 
 public:
 	/* Loads a single <T> object ptr */
-	template <class T = UObject>
-	void LoadObject(const TSharedPtr<FJsonObject>* PackageIndex, T*& Object);
+	template<class T = UObject>
+	void LoadObject(const TSharedPtr<FJsonObject>* PackageIndex, TObjectPtr<T>& Object);
 
 	/* Loads an array of <T> object ptrs */
-	template <class T = UObject>
-	TArray<T*> LoadObject(const TArray<TSharedPtr<FJsonValue>>& PackageArray, TArray<T*> Array);
+	template<class T = UObject>
+	TArray<TObjectPtr<T>> LoadObject(const TArray<TSharedPtr<FJsonValue>>& PackageArray, TArray<TObjectPtr<T>> Array);
 
 	void ParsePackageIndex(const TSharedPtr<FJsonObject>* PackageIndex, FString& OutType, FString& OutName, FString& OutPath, FString& OutOuter);
 
@@ -221,7 +213,17 @@ protected:
 
 	/* ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Object Serializer and Property Serializer ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ */
 public:
-	// Wrapper for remote downloading
+	/* Function to check if an asset needs to be imported. Once imported, the asset will be set and returned. */
 	template <class T = UObject>
-	static T* DownloadWrapper(T* InObject, FString Type, FString Name, FString Path);
+	static TObjectPtr<T> DownloadWrapper(TObjectPtr<T> InObject, FString Type, FString Name, FString Path);
+
+protected:
+	void DeserializeExports(UObject* ParentAsset) const {
+		UObjectSerializer* ObjectSerializer = GetObjectSerializer();
+		ObjectSerializer->SetExportForDeserialization(JsonObject, ParentAsset);
+		ObjectSerializer->ParentAsset = ParentAsset;
+
+		ObjectSerializer->DeserializeExports(AllJsonObjects);
+	};
+	/* ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Object Serializer and Property Serializer ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ */
 };

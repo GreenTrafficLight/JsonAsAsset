@@ -8,6 +8,7 @@
 #include "Structs/StructSerializer.h"
 #include "UObject/Object.h"
 #include "UObject/UnrealType.h"
+#include "Utilities/Compatibility.h"
 
 #include "PropertyUtilities.generated.h"
 

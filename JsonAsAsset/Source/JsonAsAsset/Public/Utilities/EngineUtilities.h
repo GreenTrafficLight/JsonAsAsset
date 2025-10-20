@@ -2,9 +2,10 @@
 
 #pragma once
 
+#include "Framework/Notifications/NotificationManager.h"
+#include "Widgets/Notifications/SNotificationList.h"
 #include "Utilities/Serializers/PropertyUtilities.h"
 #include "Settings/JsonAsAssetSettings.h"
-#include "Framework/Notifications/NotificationManager.h"
 
 inline TSharedPtr<FJsonObject> GetExport(const FString& Type, TArray<TSharedPtr<FJsonValue>> AllJsonObjects, const bool bGetProperties = false) {
 	for (const TSharedPtr<FJsonValue> Value : AllJsonObjects) {

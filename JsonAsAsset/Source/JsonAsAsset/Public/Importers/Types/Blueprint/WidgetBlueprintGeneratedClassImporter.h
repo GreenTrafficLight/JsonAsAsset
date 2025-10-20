@@ -7,11 +7,11 @@
 #include "Components/PanelWidget.h"
 #include "Importers/Constructor/Importer.h"
 
-class UWidgetBlueprintGeneratedClassImporter : public IImporter {
+class IWidgetBlueprintGeneratedClassImporter : public IImporter {
 public:
 
-	UWidgetBlueprintGeneratedClassImporter(const FString& FileName, const FString& FilePath, const TSharedPtr<FJsonObject>& JsonObject, UPackage* Package, UPackage* OutermostPkg, const TArray<TSharedPtr<FJsonValue>>& AllJsonObjects) :
-		IImporter(FileName, FilePath, JsonObject, Package, OutermostPkg, AllJsonObjects) {
+	IWidgetBlueprintGeneratedClassImporter(const FString& AssetName, const FString& FilePath, const TSharedPtr<FJsonObject>& JsonObject, UPackage* Package, UPackage* OutermostPkg, const TArray<TSharedPtr<FJsonValue>>& AllJsonObjects, UClass* AssetClass) :
+		IImporter(AssetName, FilePath, JsonObject, Package, OutermostPkg, AllJsonObjects, AssetClass) {
 	}
 
 	virtual bool Import() override;
@@ -21,3 +21,7 @@ public:
 private:
 	UClass* GetWidgetClass(const TSharedPtr<FJsonObject>& ObjData);
 };
+
+REGISTER_IMPORTER(IWidgetBlueprintGeneratedClassImporter, (TArray<FString>{
+	TEXT("WidgetBlueprintGeneratedClass"),
+}), TEXT("Blueprint Assets"));

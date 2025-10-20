@@ -12,7 +12,7 @@
 #include "Kismet2/KismetEditorUtilities.h"
 #include "Kismet2/BlueprintEditorUtils.h"
 
-bool UBlueprintGeneratedClassImporter::Import() {
+bool IBlueprintGeneratedClassImporter::Import() {
 	try {
 		const TSharedPtr<FJsonObject> SuperStruct = JsonObject->GetObjectField(TEXT("SuperStruct"));
 		UClass* ParentClass = LoadClass(SuperStruct);
@@ -45,7 +45,7 @@ bool UBlueprintGeneratedClassImporter::Import() {
 	return true;
 }
 
-void UBlueprintGeneratedClassImporter::HandleSimpleConstructionScript(UBlueprint* BP, USCS_Node* Node, const TArray<TSharedPtr<FJsonValue>> NodesObject, bool bIsRoot) {
+void IBlueprintGeneratedClassImporter::HandleSimpleConstructionScript(UBlueprint* BP, USCS_Node* Node, const TArray<TSharedPtr<FJsonValue>> NodesObject, bool bIsRoot) {
 	USimpleConstructionScript* SCS = BP->SimpleConstructionScript;
 
 	for (const TSharedPtr<FJsonValue>& NodeObject : NodesObject) {
@@ -86,7 +86,7 @@ void UBlueprintGeneratedClassImporter::HandleSimpleConstructionScript(UBlueprint
 	}
 }
 
-void UBlueprintGeneratedClassImporter::ReadComponentTemplate(UActorComponent* ComponentTemplate, const TSharedPtr<FJsonObject> ComponentTemplateObjectPath) {
+void IBlueprintGeneratedClassImporter::ReadComponentTemplate(UActorComponent* ComponentTemplate, const TSharedPtr<FJsonObject> ComponentTemplateObjectPath) {
 	const TSharedPtr<FJsonObject> ComponentTemplateObject = TSharedPtr<FJsonObject>(GetExportByObjectPath(ComponentTemplateObjectPath)->AsObject());
 	const TSharedPtr<FJsonObject> ComponentTemplatePropertiesObject = ComponentTemplateObject->GetObjectField(TEXT("Properties"));
 

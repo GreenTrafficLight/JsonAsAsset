@@ -30,7 +30,7 @@
 #include "Kismet2/KismetEditorUtilities.h"
 
 // Shout-out to UEAssetToolkit
-bool UWidgetBlueprintGeneratedClassImporter::Import() {
+bool IWidgetBlueprintGeneratedClassImporter::Import() {
 	try {
 		const TSharedPtr<FJsonObject> SuperStruct = JsonObject->GetObjectField(TEXT("SuperStruct"));
 		UClass* ParentClass = LoadClass(SuperStruct);
@@ -70,7 +70,7 @@ bool UWidgetBlueprintGeneratedClassImporter::Import() {
 	return true;
 }
 
-void UWidgetBlueprintGeneratedClassImporter::HandlePanelSlots(UWidgetBlueprint* WidgetBP, const TSharedPtr<FJsonObject> PanelJsonObject, UPanelWidget* Panel) {
+void IWidgetBlueprintGeneratedClassImporter::HandlePanelSlots(UWidgetBlueprint* WidgetBP, const TSharedPtr<FJsonObject> PanelJsonObject, UPanelWidget* Panel) {
 	// Get the slots of the panel
 	const TArray<TSharedPtr<FJsonValue>> Slots = PanelJsonObject->GetObjectField(TEXT("Properties"))->GetArrayField(TEXT("Slots"));
 	// For each slot in the panel
@@ -110,10 +110,10 @@ void UWidgetBlueprintGeneratedClassImporter::HandlePanelSlots(UWidgetBlueprint* 
 				IImporter* Importer = new IImporter();
 				Importer->ParsePackageIndex(TemplateObj, Type, Name, Path, Outer);
 
-				UObject* Object = NULL;
+				TObjectPtr<UObject> Object;
 				Object = Importer->DownloadWrapper(Object, TEXT("WidgetBlueprintGeneratedClass"), Type, Path);
 
-				if (UWidgetBlueprintGeneratedClass* WidgetClass = Cast<UWidgetBlueprintGeneratedClass>(Object))
+				if (UWidgetBlueprintGeneratedClass* WidgetClass = Cast<UWidgetBlueprintGeneratedClass>(Object.Get()))
 				{
 					NewWidget = WidgetBP->WidgetTree->ConstructWidget<UUserWidget>(WidgetClass, FName(*SlotContent->GetStringField(TEXT("Name"))));
 				}
@@ -151,7 +151,7 @@ void UWidgetBlueprintGeneratedClassImporter::HandlePanelSlots(UWidgetBlueprint* 
 	}
 }
 
-UClass* UWidgetBlueprintGeneratedClassImporter::GetWidgetClass(const TSharedPtr<FJsonObject>& ObjData) {
+UClass* IWidgetBlueprintGeneratedClassImporter::GetWidgetClass(const TSharedPtr<FJsonObject>& ObjData) {
 	UClass* WidgetClass = nullptr;
 
 	FString ClassName = ObjData->GetStringField(TEXT("Class"));

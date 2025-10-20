@@ -121,7 +121,7 @@ UObject* FAssetUtilities::GetSelectedAsset() {
 
 // Constructing assets ect..
 template <typename T>
-bool FAssetUtilities::ConstructAsset(const FString& Path, const FString& Type, T*& OutObject, bool& bSuccess) {
+bool FAssetUtilities::ConstructAsset(const FString& Path, const FString& Type, TObjectPtr<T>& OutObject, bool& bSuccess) {
 	/* Skip if no type provided */
 	if (Type == "") {
 		return false;
