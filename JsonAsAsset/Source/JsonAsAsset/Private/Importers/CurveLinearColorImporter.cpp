@@ -8,13 +8,13 @@
 #include "Factories/CurveFactory.h"
 #include "Utilities/MathUtilities.h"
 
-bool UCurveLinearColorImporter::ImportData() {
+bool UCurveLinearColorImporter::Import() {
 	try {
 		// Array of containers
 		TArray<TSharedPtr<FJsonValue>> FloatCurves = JsonObject->GetArrayField("FloatCurves");
 
 		UCurveLinearColorFactory* CurveFactory = NewObject<UCurveLinearColorFactory>();
-		UCurveLinearColor* LinearCurveAsset = Cast<UCurveLinearColor>(CurveFactory->FactoryCreateNew(UCurveLinearColor::StaticClass(), Cast<UObject>(OutermostPkg), *FileName, RF_Standalone | RF_Public, nullptr, GWarn));
+		UCurveLinearColor* LinearCurveAsset = Cast<UCurveLinearColor>(CurveFactory->FactoryCreateNew(UCurveLinearColor::StaticClass(), Cast<UObject>(OutermostPkg), *AssetName, RF_Standalone | RF_Public, nullptr, GWarn));
 
 		// for each container, get keys
 		for (int i = 0; i < FloatCurves.Num(); i++) {

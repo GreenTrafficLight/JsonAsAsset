@@ -8,6 +8,6 @@
 #include "Dom/JsonObject.h"
 #include "Utilities/AssetUtilities.h"
 
-bool UCurveLinearColorAtlasImporter::ImportData() {
+bool UCurveLinearColorAtlasImporter::Import() {
 	return true;
 }

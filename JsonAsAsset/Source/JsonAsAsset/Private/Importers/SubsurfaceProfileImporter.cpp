@@ -5,9 +5,9 @@
 #include "Engine/SubsurfaceProfile.h"
 #include "Utilities/MathUtilities.h"
 
-bool USubsurfaceProfileImporter::ImportData() {
+bool USubsurfaceProfileImporter::Import() {
 	try {
-		USubsurfaceProfile* SubsurfaceProfile = NewObject<USubsurfaceProfile>(Cast<UObject>(Package), USubsurfaceProfile::StaticClass(), *FileName, RF_Public | RF_Standalone);
+		USubsurfaceProfile* SubsurfaceProfile = NewObject<USubsurfaceProfile>(Cast<UObject>(Package), USubsurfaceProfile::StaticClass(), *AssetName, RF_Public | RF_Standalone);
 		TSharedPtr<FJsonObject> Properties = JsonObject->GetObjectField("Properties");
 		GetObjectSerializer()->DeserializeObjectProperties(Properties, SubsurfaceProfile);
 

@@ -17,7 +17,7 @@ bool UTextureImporter::ImportTexture2D(UTexture*& OutTexture2D, TArray<uint8>& D
 	const TSharedPtr<FJsonObject> SubObjectProperties = Properties->GetObjectField("Properties");
 
 	// NEW: .bin support
-	UTexture2D* Texture2D = NewObject<UTexture2D>(OutermostPkg, UTexture2D::StaticClass(), *FileName, RF_Standalone | RF_Public);
+	UTexture2D* Texture2D = NewObject<UTexture2D>(OutermostPkg, UTexture2D::StaticClass(), *AssetName, RF_Standalone | RF_Public);
 	Texture2D->PlatformData = new FTexturePlatformData();
 
 	ImportTexture2D_Data(Texture2D, SubObjectProperties);

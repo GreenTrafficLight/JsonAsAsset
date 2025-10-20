@@ -10,7 +10,7 @@ public:
 		UMaterialGraph_Interface(FileName, FilePath, JsonObject, Package, OutermostPkg, AllJsonObjects) {
 	}
 
-	virtual bool ImportData() override;
+	virtual bool Import() override;
 
 	// Subgraph Functions
 	TArray<TSharedPtr<FJsonValue>> FilterGraphNodesBySubgraphExpression(const FString& Outer);

@@ -12,15 +12,15 @@
 #include "Kismet2/KismetEditorUtilities.h"
 #include "Kismet2/BlueprintEditorUtils.h"
 
-bool UBlueprintGeneratedClassImporter::ImportData() {
+bool UBlueprintGeneratedClassImporter::Import() {
 	try {
 		const TSharedPtr<FJsonObject> SuperStruct = JsonObject->GetObjectField(TEXT("SuperStruct"));
 		UClass* ParentClass = LoadClass(SuperStruct);
 
 		UBlueprint* Blueprint = nullptr;
-		Blueprint = FindObject<UBlueprint>(Package, *FileName);
+		Blueprint = FindObject<UBlueprint>(Package, *AssetName);
 		if (!Blueprint) {
-			Blueprint = FKismetEditorUtilities::CreateBlueprint(ParentClass, Package, FName(*FileName), BPTYPE_Normal, UBlueprint::StaticClass(), UBlueprintGeneratedClass::StaticClass());
+			Blueprint = FKismetEditorUtilities::CreateBlueprint(ParentClass, Package, FName(*AssetName), BPTYPE_Normal, UBlueprint::StaticClass(), UBlueprintGeneratedClass::StaticClass());
 
 			const TSharedPtr<FJsonObject> SimpleConstructionScriptObject = TSharedPtr<FJsonObject>(GetExportByObjectPath(JsonObject->GetObjectField(TEXT("Properties"))->GetObjectField(TEXT("SimpleConstructionScript")))->AsObject());
 		

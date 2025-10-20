@@ -3,10 +3,10 @@
 #include "Importers/SoundConcurrencyImporter.h"
 #include "Sound/SoundConcurrency.h"
 
-bool USoundConcurrencyImporter::ImportData() {
+bool USoundConcurrencyImporter::Import() {
 	try {
 		TSharedPtr<FJsonObject> Properties = JsonObject->GetObjectField("Properties");
-		USoundConcurrency* SoundConcurrency = NewObject<USoundConcurrency>(Cast<UObject>(Package), USoundConcurrency::StaticClass(), *FileName, RF_Public | RF_Standalone);
+		USoundConcurrency* SoundConcurrency = NewObject<USoundConcurrency>(Cast<UObject>(Package), USoundConcurrency::StaticClass(), *AssetName, RF_Public | RF_Standalone);
 		GetObjectSerializer()->DeserializeObjectProperties(Properties, SoundConcurrency);
 
 		// Handle edit changes, and add it to the content browser

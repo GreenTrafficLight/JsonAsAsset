@@ -13,5 +13,5 @@ public:
 		IImporter(FileName, FilePath, JsonObject, Package, OutermostPkg) {
 	}
 
-	virtual bool ImportData() override;
+	virtual bool Import() override;
 };

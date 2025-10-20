@@ -5,16 +5,6 @@
 #include "Engine/StaticMesh.h"
 #include "Dom/JsonObject.h"
 
-template <typename T>
-struct TObjectPtr {
-public:
-	using ElementType = T;
-
-	TObjectPtr()
-		: ObjectPtr() {
-	}
-};
-
 class FAssetUtilities {
 public:
 	/*

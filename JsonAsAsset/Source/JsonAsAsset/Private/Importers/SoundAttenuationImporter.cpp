@@ -5,10 +5,10 @@
 #include "Sound/SoundAttenuation.h"
 #include "Utilities/MathUtilities.h"
 
-bool USoundAttenuationImporter::ImportData() {
+bool USoundAttenuationImporter::Import() {
 	try {
 		TSharedPtr<FJsonObject> Properties = JsonObject->GetObjectField("Properties");
-		USoundAttenuation* SoundAttenuation = NewObject<USoundAttenuation>(Cast<UObject>(Package), USoundAttenuation::StaticClass(), *FileName, RF_Public | RF_Standalone);
+		USoundAttenuation* SoundAttenuation = NewObject<USoundAttenuation>(Cast<UObject>(Package), USoundAttenuation::StaticClass(), *AssetName, RF_Public | RF_Standalone);
 		GetObjectSerializer()->DeserializeObjectProperties(Properties, SoundAttenuation);
 
 		// Handle edit changes, and add it to the content browser

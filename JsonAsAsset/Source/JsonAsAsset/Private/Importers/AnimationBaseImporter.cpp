@@ -9,7 +9,7 @@
 #include "Animation/AnimSequence.h"
 #include "Animation/AnimMontage.h"
 
-bool UAnimationBaseImporter::ImportData() {
+bool UAnimationBaseImporter::Import() {
 	try {
 		// Properties of the object
 		TSharedPtr<FJsonObject> Properties = JsonObject->GetObjectField("Properties");

@@ -12,7 +12,7 @@
 
 #include "Settings/JsonAsAssetSettings.h"
 
-bool UMaterialImporter::ImportData() {
+bool UMaterialImporter::Import() {
 	return true;
 }
 

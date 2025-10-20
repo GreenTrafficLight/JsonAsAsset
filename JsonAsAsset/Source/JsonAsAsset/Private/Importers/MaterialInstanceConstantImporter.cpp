@@ -12,6 +12,6 @@
 #include "Materials/MaterialExpressionStaticComponentMaskParameter.h"
 #include "MaterialShared.h"
 
-bool UMaterialInstanceConstantImporter::ImportData() {
+bool UMaterialInstanceConstantImporter::Import() {
 	return true;
 }

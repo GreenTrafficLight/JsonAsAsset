@@ -5,9 +5,9 @@
 #include "LandscapeGrassType.h"
 #include "Utilities/MathUtilities.h"
 
-bool ULandscapeGrassTypeImporter::ImportData() {
+bool ULandscapeGrassTypeImporter::Import() {
 	try {
-		ULandscapeGrassType* LandscapeGrassType = NewObject<ULandscapeGrassType>(Cast<UObject>(Package), ULandscapeGrassType::StaticClass(), *FileName, RF_Public | RF_Standalone);
+		ULandscapeGrassType* LandscapeGrassType = NewObject<ULandscapeGrassType>(Cast<UObject>(Package), ULandscapeGrassType::StaticClass(), *AssetName, RF_Public | RF_Standalone);
 		TSharedPtr<FJsonObject> Properties = JsonObject->GetObjectField("Properties");
 		GetObjectSerializer()->DeserializeObjectProperties(Properties, LandscapeGrassType);
 

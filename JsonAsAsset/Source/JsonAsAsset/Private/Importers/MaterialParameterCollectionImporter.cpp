@@ -6,12 +6,12 @@
 #include "Materials/MaterialParameterCollection.h"
 #include "Utilities/MathUtilities.h"
 
-bool UMaterialParameterCollectionImporter::ImportData() {
+bool UMaterialParameterCollectionImporter::Import() {
 	try {
 		// Query properties for multi-use purposes
 		TSharedPtr<FJsonObject> Properties = JsonObject->GetObjectField("Properties");
 
-		UMaterialParameterCollection* MaterialParameterCollection = NewObject<UMaterialParameterCollection>(Cast<UObject>(Package), UMaterialParameterCollection::StaticClass(), *FileName, RF_Public | RF_Standalone);
+		UMaterialParameterCollection* MaterialParameterCollection = NewObject<UMaterialParameterCollection>(Cast<UObject>(Package), UMaterialParameterCollection::StaticClass(), *AssetName, RF_Public | RF_Standalone);
 		MaterialParameterCollection->StateId = CreateGUID(Properties->GetStringField("StateId"));
 
 		const TArray<TSharedPtr<FJsonValue>>* ScalarParametersPtr;

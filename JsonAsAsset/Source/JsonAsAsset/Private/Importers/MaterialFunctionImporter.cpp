@@ -4,6 +4,6 @@
 #include "Materials/MaterialFunction.h"
 #include "Factories/MaterialFunctionFactoryNew.h"
 
-bool UMaterialFunctionImporter::ImportData() {
+bool UMaterialFunctionImporter::Import() {
 	return true;
 }

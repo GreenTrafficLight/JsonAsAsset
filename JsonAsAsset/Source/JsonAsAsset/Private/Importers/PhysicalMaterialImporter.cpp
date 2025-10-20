@@ -4,6 +4,6 @@
 
 #include "PhysicalMaterials/PhysicalMaterial.h"
 
-bool UPhysicalMaterialImporter::ImportData() {
+bool UPhysicalMaterialImporter::Import() {
     return true;
 }

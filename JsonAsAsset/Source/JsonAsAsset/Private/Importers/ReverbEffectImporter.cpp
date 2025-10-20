@@ -5,10 +5,10 @@
 
 #include "Dom/JsonObject.h"
 
-bool UReverbEffectImporter::ImportData() {
+bool UReverbEffectImporter::Import() {
 	try {
 		TSharedPtr<FJsonObject> Properties = JsonObject->GetObjectField("Properties");
-		UReverbEffect* ReverbEffect = NewObject<UReverbEffect>(Cast<UObject>(Package), UReverbEffect::StaticClass(), *FileName, RF_Public | RF_Standalone);
+		UReverbEffect* ReverbEffect = NewObject<UReverbEffect>(Cast<UObject>(Package), UReverbEffect::StaticClass(), *AssetName, RF_Public | RF_Standalone);
 		GetObjectSerializer()->DeserializeObjectProperties(Properties, ReverbEffect);
 
 		// Handle edit changes, and add it to the content browser

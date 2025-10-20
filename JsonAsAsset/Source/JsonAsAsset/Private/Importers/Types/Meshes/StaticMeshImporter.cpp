@@ -12,10 +12,10 @@
 
 bool UStaticMeshImporter::ImportStaticMesh(UStaticMesh*& OutStaticMesh, TArray<uint8>& Data, const TSharedPtr<FJsonObject>& Properties) const  {
 	UStaticMesh* StaticMesh = nullptr;
-	StaticMesh = FindObject<UStaticMesh>(Package, *FileName);
+	StaticMesh = FindObject<UStaticMesh>(Package, *AssetName);
 
 	if (!StaticMesh) {
-		StaticMesh = NewObject<UStaticMesh>(OutermostPkg, *FileName, RF_Public | RF_Standalone);
+		StaticMesh = NewObject<UStaticMesh>(OutermostPkg, *AssetName, RF_Public | RF_Standalone);
 
 		const TSharedPtr<FJsonObject> RenderDataObject = Properties->GetObjectField("RenderData");
 		const TArray<TSharedPtr<FJsonValue>> LODsObject = RenderDataObject->GetArrayField(TEXT("LODs"));

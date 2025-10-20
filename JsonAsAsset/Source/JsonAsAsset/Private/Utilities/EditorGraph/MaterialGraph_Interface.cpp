@@ -110,106 +110,6 @@ FMaterialAttributesInput UMaterialGraph_Interface::CreateMaterialAttributesInput
 }
 
 void UMaterialGraph_Interface::PropagateExpressions(UObject* Parent, TArray<FName>& ExpressionNames, TMap<FName, FImportData>& Exports, TMap<FName, UMaterialExpression*>& CreatedExpressionMap, bool bCheckOuter, bool bSubgraph) {
-	for (FName Name : ExpressionNames) {
-		FImportData* Type = Exports.Find(Name);
-		TSharedPtr<FJsonObject> Properties = Type->Json->GetObjectField("Properties");
-
-		// Find the expression from FName
-		if (!CreatedExpressionMap.Contains(Name)) continue;
-		UMaterialExpression* Expression = *CreatedExpressionMap.Find(Name);
-
-		if (Cast<UMaterialExpressionComment>(Expression)) {
-			Expression;
-		}
-
-		//	Used for Subgraphs:
-		//  | Checks if the outer is the same as the parent
-		//  | to determine if it's in a subgraph or not.
-		if (bCheckOuter) {
-			FString Outer;
-			if (Type->Json->TryGetStringField("Outer", Outer) &&
-				Outer != Parent->GetName()) // Not the same as parent
-
-				continue;
-		}
-
-		// ------------ Manually check for Material Function Calls ------------ 
-		if (Type->Type == "MaterialExpressionMaterialFunctionCall") {
-			UMaterialExpressionMaterialFunctionCall* MaterialFunctionCall = Cast<UMaterialExpressionMaterialFunctionCall>(Expression);
-			const TSharedPtr<FJsonObject>* MaterialFunctionPtr;
-
-			if (Properties->TryGetObjectField("MaterialFunction", MaterialFunctionPtr)) {
-				LoadObject(MaterialFunctionPtr, MaterialFunctionCall->MaterialFunction);
-
-				// Notify material function is missing
-				if (MaterialFunctionCall->MaterialFunction == nullptr) {
-					FString ObjectPath;
-					MaterialFunctionPtr->Get()->GetStringField("ObjectPath").Split(".", &ObjectPath, nullptr);
-					if (!HandleReference(ObjectPath)) AppendNotification(
-						FText::FromString("Material Function Missing: " + ObjectPath), 
-						FText::FromString("Material Graph"), 
-						2.0f, 
-						SNotificationItem::CS_Fail, 
-						true,
-						500);
-					else LoadObject(MaterialFunctionPtr, MaterialFunctionCall->MaterialFunction);
-				}
-			}
-		}
-
-		// Sets 99% of properties for nodes
-		GetObjectSerializer()->DeserializeObjectProperties(Properties, Expression);
-
-		// Material Nodes with edited properties (ex: 9 objects with the same name ---> array of objects)
-		if (Type->Type == "MaterialExpressionQualitySwitch") {
-			UMaterialExpressionQualitySwitch* QualitySwitch = Cast<UMaterialExpressionQualitySwitch>(Expression);
-			const TArray<TSharedPtr<FJsonValue>>* InputsPtr;
-
-			if (Type->Json->TryGetArrayField("Inputs", InputsPtr)) {
-				int i = 0;
-				for (const TSharedPtr<FJsonValue> InputValue : *InputsPtr) {
-					FJsonObject* InputObject = InputValue->AsObject().Get();
-					FName InputExpressionName = GetExpressionName(InputObject);
-					if (CreatedExpressionMap.Contains(InputExpressionName)) {
-						FExpressionInput Input = PopulateExpressionInput(InputObject, *CreatedExpressionMap.Find(InputExpressionName));
-						QualitySwitch->Inputs[i] = Input;
-					}
-					i++;
-				}
-			}
-		}
-		else if (Type->Type == "MaterialExpressionFeatureLevelSwitch") {
-			UMaterialExpressionFeatureLevelSwitch* FeatureLevelSwitch = Cast<UMaterialExpressionFeatureLevelSwitch>(Expression);
-
-			const TArray<TSharedPtr<FJsonValue>>* InputsPtr;
-
-			if (Type->Json->TryGetArrayField("Inputs", InputsPtr)) {
-				int i = 0;
-				for (const TSharedPtr<FJsonValue> InputValue : *InputsPtr) {
-					FJsonObject* InputObject = InputValue->AsObject().Get();
-					FName InputExpressionName = GetExpressionName(InputObject);
-					if (CreatedExpressionMap.Contains(InputExpressionName)) {
-						FExpressionInput Input = PopulateExpressionInput(InputObject, *CreatedExpressionMap.Find(InputExpressionName));
-						FeatureLevelSwitch->Inputs[i] = Input;
-					}
-					i++;
-				}
-			}
-		}
-
-		MaterialGraphNode_ExpressionWrapper(Parent, Expression, Properties);
-
-		if (!bSubgraph) {
-			if (UMaterialFunction* FuncCasted = Cast<UMaterialFunction>(Parent))
-				FuncCasted->FunctionExpressions.Add(Expression);
-
-			if (UMaterial* MatCasted = Cast<UMaterial>(Parent)) {
-				MatCasted->Expressions.Add(Expression);
-				Expression->UpdateMaterialExpressionGuid(true, false);
-				MatCasted->AddExpressionParameter(Expression, MatCasted->EditorParameters);
-			}
-		}
-	}
 }
 
 void UMaterialGraph_Interface::MaterialGraphNode_ConstructComments(UObject* Parent, const TSharedPtr<FJsonObject>& Json, TMap<FName, FImportData>& Exports) {
@@ -254,18 +154,6 @@ void UMaterialGraph_Interface::MaterialGraphNode_ConstructComments(UObject* Pare
 }
 
 void UMaterialGraph_Interface::MaterialGraphNode_ExpressionWrapper(UObject* Parent, UMaterialExpression* Expression, const TSharedPtr<FJsonObject>& Json) {
-	if (UMaterialFunction* FuncCasted = Cast<UMaterialFunction>(Parent)) Expression->Function = FuncCasted;
-	else if (UMaterial* MatCasted = Cast<UMaterial>(Parent)) Expression->Material = MatCasted;
-
-	if (UMaterialExpressionTextureBase* TextureBase = Cast<UMaterialExpressionTextureBase>(Expression)) {
-		const TSharedPtr<FJsonObject>* TexturePtr;
-
-		if (Json->TryGetObjectField("Texture", TexturePtr)) {
-			LoadObject(TexturePtr, TextureBase->Texture);
-
-			Expression->UpdateParameterGuid(true, false);
-		}
-	}
 }
 
 UMaterialExpression* UMaterialGraph_Interface::CreateEmptyExpression(UObject* Parent, FName Name, FName Type, FJsonObject* Obj) {

@@ -8,29 +8,138 @@
 #include "Widgets/Notifications/SNotificationList.h"
 #include "Utilities/Serializers/SerializerContainer.h"
 
+FORCEINLINE uint32 GetTypeHash(const TArray<FString>& Array) {
+	uint32 Hash = 0;
+
+	for (const FString& Str : Array) {
+		Hash = HashCombine(Hash, GetTypeHash(Str));
+	}
+
+	return Hash;
+}
+
+#define REGISTER_IMPORTER(ImporterClass, AcceptedTypes, Category) \
+namespace { \
+    struct FAutoRegister_##ImporterClass { \
+        FAutoRegister_##ImporterClass() { \
+            IImporter::FImporterRegistrationInfo Info( FString(Category), &IImporter::CreateImporter<ImporterClass> ); \
+            IImporter::GetFactoryRegistry().Add(AcceptedTypes, Info); \
+        } \
+    }; \
+    static FAutoRegister_##ImporterClass AutoRegister_##ImporterClass; \
+}
+
 // Global handler for converting JSON to assets
 class IImporter : public USerializerContainer {
 public:
-	IImporter() {
+	/* Constructors ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ */
+	IImporter() : AssetClass(nullptr), ParentObject(nullptr) {}
+
+	/* Importer Constructor */
+	IImporter(const FString& AssetName, const FString& FilePath,
+		const TSharedPtr<FJsonObject>& JsonObject, UPackage* Package,
+		UPackage* OutermostPkg, const TArray<TSharedPtr<FJsonValue>>& AllJsonObjects = {}, UClass* AssetClass = nullptr);
+
+	virtual ~IImporter() override {}
+
+	/* Easy way to find importers ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ */
+	using FImporterFactoryDelegate = TFunction<IImporter*(const FString& AssetName, const FString& FilePath, const TSharedPtr<FJsonObject>& JsonObject, UPackage* Package, UPackage* OutermostPkg, const TArray<TSharedPtr<FJsonValue>>& Exports, UClass* AssetClass)>;
+
+	template <typename T>
+	static IImporter* CreateImporter(const FString& AssetName, const FString& FilePath, const TSharedPtr<FJsonObject>& JsonObject, UPackage* Package, UPackage* OutermostPkg, const TArray<TSharedPtr<FJsonValue>>& Exports, UClass* AssetClass) {
+		return new T(AssetName, FilePath, JsonObject, Package, OutermostPkg, Exports, AssetClass);
 	}
 
-	IImporter(const FString& FileName, const FString& FilePath, const TSharedPtr<FJsonObject>& JsonObject, UPackage* Package, UPackage* OutermostPkg, const TArray<TSharedPtr<FJsonValue>>& AllJsonObjects = {}) {
-		this->FileName = FileName;
-		this->FilePath = FilePath;
-		this->JsonObject = JsonObject;
-		this->Package = Package;
-		this->OutermostPkg = OutermostPkg;
-		this->AllJsonObjects = AllJsonObjects;
-		this->PropertySerializer = NewObject<UPropertySerializer>();
-		this->GObjectSerializer = NewObject<UObjectSerializer>();
-		this->GObjectSerializer->SetPropertySerializer(PropertySerializer);
+	/* Registration info for an importer */
+	struct FImporterRegistrationInfo {
+		FString Category;
+		FImporterFactoryDelegate Factory;
+
+		FImporterRegistrationInfo(const FString& InCategory, const FImporterFactoryDelegate& InFactory)
+			: Category(InCategory)
+			, Factory(InFactory)
+		{
+		}
+
+		FImporterRegistrationInfo() = default;
+	};
+
+	static TMap<TArray<FString>, FImporterRegistrationInfo>& GetFactoryRegistry() {
+		static TMap<TArray<FString>, FImporterRegistrationInfo> Registry;
+
+		return Registry;
 	}
 
-	virtual ~IImporter() {
+	static FImporterFactoryDelegate* FindFactoryForAssetType(const FString& AssetType) {
+		//const UJsonAsAssetSettings* Settings = GetDefault<UJsonAsAssetSettings>();
+
+		for (auto& Pair : GetFactoryRegistry()) {
+			/*if (!Settings->bEnableExperiments) {
+				if (ExperimentalAssetTypes.Contains(AssetType)) return nullptr;
+			}*/
+
+			if (Pair.Key.Contains(AssetType)) {
+				return &Pair.Value.Factory;
+			}
+		}
+
+		return nullptr;
 	}
 
-	// Import the data of the supported type, return if successful or not
-	virtual bool ImportData() { return false; }
+public:
+	TArray<TSharedPtr<FJsonValue>> AllJsonObjects;
+
+protected:
+	/* Class variables ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ */
+	FORCEINLINE UObjectSerializer* GetObjectSerializer() const { return GObjectSerializer; }
+	TSharedPtr<FJsonObject> JsonObject;
+	FString FilePath;
+	
+	UPackage* Package;
+	UPackage* OutermostPkg;
+
+	TSharedPtr<FJsonObject> AssetData;
+	UClass* AssetClass;
+	FString AssetName;
+	/* ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ */
+
+public:
+	/*
+	* Overriden in child classes.
+	* Returns false if failed.
+	*/
+	virtual bool Import() {
+		return false;
+	}
+
+public:
+	/* Accepted Types ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ */
+	static bool CanImportWithCloud(const FString& ImporterType) {
+		/*if (BlacklistedCloudTypes.Contains(ImporterType)) {
+			return false;
+		}*/
+
+		return true;
+	}
+
+	static bool IsAssetTypeExperimental(const FString& ImporterType) {
+		/*if (ExperimentalAssetTypes.Contains(ImporterType)) {
+			return false;
+		}*/
+
+		return true;
+	}
+
+	bool CanImport(const FString& ImporterType) { return AcceptedTypes.Contains(ImporterType); }
+
+	bool CanImportAny(TArray<FString>& Types) {
+		for (FString& Type : Types) {
+			if (!CanImport(Type)) continue;
+			return true;
+		}
+
+		return false;
+	}
 
 protected:
 	UPROPERTY()
@@ -74,9 +183,6 @@ public:
 
 	void ParsePackageIndex(const TSharedPtr<FJsonObject>* PackageIndex, FString& OutType, FString& OutName, FString& OutPath, FString& OutOuter);
 
-	// Refers to AcceptedTypes to see if type is valid ------------------
-	bool CanImport(const FString& ImporterType) { return AcceptedTypes.Contains(ImporterType); }
-
 	FGuid CreateGUID(FString String) {
 		FGuid GUID;
 		FGuid::Parse(String, GUID);
@@ -84,33 +190,17 @@ public:
 		return GUID;
 	}
 
-	bool CanImportAny(TArray<FString>& Types) {
-		for (FString& Type : Types) {
-			if (!CanImport(Type)) continue;
-			return true;
-		}
-
-		return false;
-	}
-
 	TArray<FString> GetAcceptedTypes() { return AcceptedTypes; }
-	// ------------------------------------------------------------------------
 
+public:
+	/* Sends off to the ReadExportsAndImport function once read */
 	void ImportReference(const FString& File);
 	bool HandleReference(const FString& GamePath);
 
-	bool HandleExports(TArray<TSharedPtr<FJsonValue>> Exports, FString File, bool bHideNotifications = false);
-
 	/*
-	* Gets a reference from AllJsonObjects
-	* 
-	* Example (PackageIndex):
-	* {
-          "ObjectName": "Class'Asset:ExportName'",
-          "ObjectPath": "/Game/Asset.Index"
-    * }
-	*/
-	TSharedPtr<FJsonObject> GetExport(FJsonObject* PackageIndex);
+	 * Searches for importable asset types and imports them.
+	 */
+	bool ReadExportsAndImport(TArray<TSharedPtr<FJsonValue>> Exports, FString File, bool bHideNotifications = false);
 
 public:
 	UObject* ParentObject;
@@ -118,25 +208,20 @@ public:
 protected:
 	/* This is called at the end of asset creation, bringing the user to the asset and fully loading it */
 	bool HandleAssetCreation(UObject* Asset) const;
-	void SavePackage();
+	void SavePackage() const;
+
+	/*
+	 * Handle edit changes, and add it to the content browser
+	 */
+	bool OnAssetCreation(UObject* Asset) const;
 
 	FName GetExportNameOfSubobject(const FString& PackageIndex);
 	TArray<TSharedPtr<FJsonValue>> FilterExportsByOuter(const FString& Outer);
 	TSharedPtr<FJsonValue> GetExportByObjectPath(const TSharedPtr<FJsonObject>& Object);
 
+	/* ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Object Serializer and Property Serializer ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ */
 public:
 	// Wrapper for remote downloading
 	template <class T = UObject>
 	static T* DownloadWrapper(T* InObject, FString Type, FString Name, FString Path);
-
-protected:
-
-	FORCEINLINE UObjectSerializer* GetObjectSerializer() const { return GObjectSerializer; }
-	FString FileName;
-	FString FilePath;
-	TSharedPtr<FJsonObject> JsonObject;
-	UPackage* Package;
-	UPackage* OutermostPkg;
-
-	TArray<TSharedPtr<FJsonValue>> AllJsonObjects;
 };

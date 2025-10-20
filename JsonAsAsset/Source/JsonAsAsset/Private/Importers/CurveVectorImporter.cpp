@@ -8,13 +8,13 @@
 
 #include "Utilities/MathUtilities.h"
 
-bool UCurveVectorImporter::ImportData() {
+bool UCurveVectorImporter::Import() {
 	try {
 		// Array of containers
 		TArray<TSharedPtr<FJsonValue>> FloatCurves = JsonObject->GetArrayField("FloatCurves");
 
 		UCurveVectorFactory* CurveVectorFactory = NewObject<UCurveVectorFactory>();
-		UCurveVector* CurveVectorAsset = Cast<UCurveVector>(CurveVectorFactory->FactoryCreateNew(UCurveVector::StaticClass(), Cast<UObject>(OutermostPkg), *FileName, RF_Standalone | RF_Public, nullptr, GWarn));
+		UCurveVector* CurveVectorAsset = Cast<UCurveVector>(CurveVectorFactory->FactoryCreateNew(UCurveVector::StaticClass(), Cast<UObject>(OutermostPkg), *AssetName, RF_Standalone | RF_Public, nullptr, GWarn));
 
 		// for each container, get keys
 		for (int i = 0; i < FloatCurves.Num(); i++) {

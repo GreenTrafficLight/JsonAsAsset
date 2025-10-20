@@ -12,5 +12,5 @@ public:
 		UMaterialGraph_Interface(FileName, FilePath, JsonObject, Package, OutermostPkg, AllJsonObjects) {
 	}
 
-	virtual bool ImportData() override;
+	virtual bool Import() override;
 };

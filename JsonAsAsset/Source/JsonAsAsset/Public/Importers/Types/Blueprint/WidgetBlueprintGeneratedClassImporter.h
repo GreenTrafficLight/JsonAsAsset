@@ -14,7 +14,7 @@ public:
 		IImporter(FileName, FilePath, JsonObject, Package, OutermostPkg, AllJsonObjects) {
 	}
 
-	virtual bool ImportData() override;
+	virtual bool Import() override;
 
 	void HandlePanelSlots(UWidgetBlueprint* WidgetBP, const TSharedPtr<FJsonObject> PanelJsonObject, UPanelWidget* Panel);
 

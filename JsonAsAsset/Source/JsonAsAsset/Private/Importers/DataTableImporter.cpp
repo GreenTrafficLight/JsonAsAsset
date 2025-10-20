@@ -8,10 +8,10 @@
 #include "Utilities/EngineUtilities.h"
 
 // Shout-out to UEAssetToolkit
-bool UDataTableImporter::ImportData() {
+bool UDataTableImporter::Import() {
 	try {
 		TSharedPtr<FJsonObject> AssetData = JsonObject->GetObjectField("Properties");
-		UDataTable* DataTable = NewObject<UDataTable>(Cast<UObject>(Package), UDataTable::StaticClass(), *FileName, RF_Public | RF_Standalone);
+		UDataTable* DataTable = NewObject<UDataTable>(Cast<UObject>(Package), UDataTable::StaticClass(), *AssetName, RF_Public | RF_Standalone);
 		
 		// ScriptClass for the Data Table
 		FString TableStruct; {
@@ -26,7 +26,7 @@ bool UDataTableImporter::ImportData() {
 		// Find Table Row Struct
 		UScriptStruct* TableRowStruct = FindObject<UScriptStruct>(ANY_PACKAGE, *TableStruct); {
 			if (TableRowStruct == NULL) {
-				AppendNotification(FText::FromString("DataTable Missing: " + TableStruct), FText::FromString(FileName), 2.0f, SNotificationItem::CS_Fail, true, 350.0f);
+				AppendNotification(FText::FromString("DataTable Missing: " + TableStruct), FText::FromString(AssetName), 2.0f, SNotificationItem::CS_Fail, true, 350.0f);
 
 				return false;
 			} else DataTable->RowStruct = TableRowStruct;

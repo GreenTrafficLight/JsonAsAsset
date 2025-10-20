@@ -7,8 +7,8 @@
 
 class UTextureImporter : public IImporter {
 public:
-	UTextureImporter(const FString& FileName, const FString& FilePath, const TSharedPtr<FJsonObject>& JsonObject, UPackage* Package, UPackage* OutermostPkg):
-		IImporter(FileName, FilePath, JsonObject, Package, OutermostPkg) {
+	UTextureImporter(const FString& AssetName, const FString& FilePath, const TSharedPtr<FJsonObject>& JsonObject, UPackage* Package, UPackage* OutermostPkg):
+		IImporter(AssetName, FilePath, JsonObject, Package, OutermostPkg) {
 	}
 
 	// Public as we don't import 2D textures locally at the moment

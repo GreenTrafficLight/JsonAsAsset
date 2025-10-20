@@ -7,13 +7,13 @@
 #include "Factories/CurveFactory.h"
 #include "Utilities/MathUtilities.h"
 
-bool UCurveFloatImporter::ImportData() {
+bool UCurveFloatImporter::Import() {
 	try {
 		// Quick way to access the curve keys
 		TArray<TSharedPtr<FJsonValue>> Keys = JsonObject->GetObjectField("Properties")->GetObjectField("FloatCurve")->GetArrayField("Keys");
 
 		UCurveFloatFactory* CurveFactory = NewObject<UCurveFloatFactory>();
-		UCurveFloat* CurveAsset = Cast<UCurveFloat>(CurveFactory->FactoryCreateNew(UCurveFloat::StaticClass(), Cast<UObject>(OutermostPkg), *FileName, RF_Standalone | RF_Public, nullptr, GWarn));
+		UCurveFloat* CurveAsset = Cast<UCurveFloat>(CurveFactory->FactoryCreateNew(UCurveFloat::StaticClass(), Cast<UObject>(OutermostPkg), *AssetName, RF_Standalone | RF_Public, nullptr, GWarn));
 
 		// Add Rich Keys
 		for (TSharedPtr<FJsonValue>& Key : Keys)

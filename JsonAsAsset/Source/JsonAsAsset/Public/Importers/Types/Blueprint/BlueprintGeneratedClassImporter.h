@@ -16,7 +16,7 @@ public:
 		IImporter(FileName, FilePath, JsonObject, Package, OutermostPkg, AllJsonObjects) {
 	}
 
-	virtual bool ImportData() override;
+	virtual bool Import() override;
 
 private:
 	void HandleSimpleConstructionScript(UBlueprint* BP, USCS_Node* Node, const TArray<TSharedPtr<FJsonValue>> NodesObject, bool bIsRoot);

@@ -30,15 +30,15 @@
 #include "Kismet2/KismetEditorUtilities.h"
 
 // Shout-out to UEAssetToolkit
-bool UWidgetBlueprintGeneratedClassImporter::ImportData() {
+bool UWidgetBlueprintGeneratedClassImporter::Import() {
 	try {
 		const TSharedPtr<FJsonObject> SuperStruct = JsonObject->GetObjectField(TEXT("SuperStruct"));
 		UClass* ParentClass = LoadClass(SuperStruct);
 		
 		UBlueprint* Blueprint = nullptr;
-		Blueprint = FindObject<UBlueprint>(Package, *FileName);
+		Blueprint = FindObject<UBlueprint>(Package, *AssetName);
 		if (!Blueprint) {
-			Blueprint = FKismetEditorUtilities::CreateBlueprint(ParentClass, Package, FName(*FileName), BPTYPE_Normal, UWidgetBlueprint::StaticClass(), UBlueprintGeneratedClass::StaticClass());
+			Blueprint = FKismetEditorUtilities::CreateBlueprint(ParentClass, Package, FName(*AssetName), BPTYPE_Normal, UWidgetBlueprint::StaticClass(), UBlueprintGeneratedClass::StaticClass());
 			UWidgetBlueprint* WidgetBP = Cast<UWidgetBlueprint>(Blueprint);
 
 			const TSharedPtr<FJsonObject> WidgetTree = TSharedPtr<FJsonObject>(GetExportByObjectPath(JsonObject->GetObjectField(TEXT("Properties"))->GetObjectField(TEXT("WidgetTree")))->AsObject());

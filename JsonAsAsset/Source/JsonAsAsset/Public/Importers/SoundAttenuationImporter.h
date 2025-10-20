@@ -6,9 +6,9 @@
 
 class USoundAttenuationImporter : public IImporter {
 public:
-	USoundAttenuationImporter(const FString& FileName, const FString& FilePath, const TSharedPtr<FJsonObject>& JsonObject, UPackage* Package, UPackage* OutermostPkg):
-		IImporter(FileName, FilePath, JsonObject, Package, OutermostPkg) {
+	USoundAttenuationImporter(const FString& AssetName, const FString& FilePath, const TSharedPtr<FJsonObject>& JsonObject, UPackage* Package, UPackage* OutermostPkg):
+		IImporter(AssetName, FilePath, JsonObject, Package, OutermostPkg) {
 	}
 
-	virtual bool ImportData() override;
+	virtual bool Import() override;
 };
