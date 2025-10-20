@@ -439,7 +439,7 @@ bool UPropertySerializer::ShouldDeserializeProperty(UProperty* Property) const {
 	return true;
 }
 
-void UPropertySerializer::DeserializeStruct(UScriptStruct* Struct, const TSharedRef<FJsonObject>& Properties, void* OutValue) {
+void UPropertySerializer::DeserializeStruct(UScriptStruct* Struct, const TSharedRef<FJsonObject>& Properties, void* OutValue) const {
 	FStructSerializer* StructSerializer = GetStructSerializer(Struct);
 	StructSerializer->Deserialize(Struct, OutValue, Properties);
 }

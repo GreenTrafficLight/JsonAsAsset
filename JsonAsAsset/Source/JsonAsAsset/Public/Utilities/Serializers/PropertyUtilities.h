@@ -63,7 +63,7 @@ public:
     bool ShouldDeserializeProperty(UProperty* Property) const;
 
     void DeserializePropertyValue(UProperty* Property, const TSharedRef<FJsonValue>& Value, void* OutValue);
-    void DeserializeStruct(UScriptStruct* Struct, const TSharedRef<FJsonObject>& Value, void* OutValue);
+    void DeserializeStruct(UScriptStruct* Struct, const TSharedRef<FJsonObject>& Value, void* OutValue) const;
 private:
     FStructSerializer* GetStructSerializer(UScriptStruct* Struct) const;
 };
