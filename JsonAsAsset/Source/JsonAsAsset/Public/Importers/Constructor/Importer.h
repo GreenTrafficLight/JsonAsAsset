@@ -4,7 +4,7 @@
 
 #include "Utilities/Compatibility.h"
 #include "Utilities/EngineUtilities.h"
-#include "Utilities/MathUtilities.h"
+#include "Utilities/JsonUtilities.h"
 #include "Dom/JsonObject.h"
 #include "CoreMinimal.h"
 #include "Utilities/Serializers/SerializerContainer.h"
@@ -128,16 +128,25 @@ public:
 		return true;
 	}
 
-	bool CanImport(const FString& ImporterType) { return AcceptedTypes.Contains(ImporterType); }
+	static  bool CanImport(const FString& ImporterType) { 
+		for (auto& Pair : GetFactoryRegistry()) {
+			/*if (!Settings->bEnableExperiments) {
+				if (ExperimentalAssetTypes.Contains(AssetType)) return nullptr;
+			}*/
 
-	bool CanImportAny(TArray<FString>& Types) {
-		for (FString& Type : Types) {
-			if (!CanImport(Type)) continue;
-			return true;
+			if (Pair.Key.Contains(ImporterType)) {
+				return true;
+			}
 		}
-
 		return false;
 	}
+
+    static bool CanImportAny(TArray<FString>& Types) {
+        for (FString& Type : Types) {
+            if (CanImport(Type)) return true;
+        }
+        return false;
+    }
 
 private:
 	TArray<FString> AcceptedTypes = {
@@ -201,6 +210,8 @@ protected:
 	/* This is called at the end of asset creation, bringing the user to the asset and fully loading it */
 	bool HandleAssetCreation(UObject* Asset) const;
 	void SavePackage() const;
+
+	TMap<FName, FExportData> CreateExports();
 
 	/*
 	 * Handle edit changes, and add it to the content browser

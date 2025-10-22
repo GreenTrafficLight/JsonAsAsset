@@ -102,23 +102,6 @@ UPackage* FAssetUtilities::CreateAssetPackage(const FString& Name, const FString
 	return Package;
 }
 
-UObject* FAssetUtilities::GetSelectedAsset() {
-	const FContentBrowserModule& ContentBrowserModule = FModuleManager::LoadModuleChecked<FContentBrowserModule>("ContentBrowser");
-	TArray<FAssetData> SelectedAssets;
-	ContentBrowserModule.Get().GetSelectedAssets(SelectedAssets);
-
-	if (SelectedAssets.Num() == 0) {
-		GLog->Log("JsonAsAsset: [GetSelectedAsset] None selected, returning nullptr.");
-
-		const FText DialogText = FText::FromString(TEXT("A function to find a selected asset failed, please select a asset to go further."));
-		FMessageDialog::Open(EAppMsgType::Ok, DialogText);
-
-		return nullptr;
-	}
-
-	return SelectedAssets[0].GetAsset();
-}
-
 // Constructing assets ect..
 template <typename T>
 bool FAssetUtilities::ConstructAsset(const FString& Path, const FString& Type, TObjectPtr<T>& OutObject, bool& bSuccess) {

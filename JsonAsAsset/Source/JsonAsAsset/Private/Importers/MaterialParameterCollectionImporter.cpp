@@ -4,7 +4,7 @@
 
 #include "Dom/JsonObject.h"
 #include "Materials/MaterialParameterCollection.h"
-#include "Utilities/MathUtilities.h"
+#include "Utilities/JsonUtilities.h"
 
 bool UMaterialParameterCollectionImporter::Import() {
 	try {
@@ -36,7 +36,7 @@ bool UMaterialParameterCollectionImporter::Import() {
 				TSharedPtr<FJsonObject> _VectorParameter = VectorParameter->AsObject();
 				FCollectionVectorParameter VectorParameter_Collection = FCollectionVectorParameter();
 
-				VectorParameter_Collection.DefaultValue = FMathUtilities::ObjectToLinearColor(_VectorParameter->GetObjectField("DefaultValue").Get());
+				VectorParameter_Collection.DefaultValue = ObjectToLinearColor(_VectorParameter->GetObjectField("DefaultValue").Get());
 				VectorParameter_Collection.ParameterName = FName(*_VectorParameter->GetStringField("ParameterName"));
 				VectorParameter_Collection.Id = CreateGUID(_VectorParameter->GetStringField("ID"));
 

@@ -18,15 +18,6 @@ public:
 	static UPackage* CreateAssetPackage(const FString& Name, const FString& OutputPath);
 	static UPackage* CreateAssetPackage(const FString& Name, const FString& OutputPath, UPackage*& OutOutermostPkg);
 
-	/**
-	 * Get the asset currently selected in the Content Browser.
-	 *
-	 * @return Selected Asset
-	 */
-	static UObject* GetSelectedAsset();
-
-	// Purpose: Wrapping references before they get set
-	//          to import them
 public:
 	/* Importing assets from Cloud */
 	template <class T = UObject>

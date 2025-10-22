@@ -3,7 +3,6 @@
 #include "Importers/SoundAttenuationImporter.h"
 #include "Dom/JsonObject.h"
 #include "Sound/SoundAttenuation.h"
-#include "Utilities/MathUtilities.h"
 
 bool USoundAttenuationImporter::Import() {
 	try {

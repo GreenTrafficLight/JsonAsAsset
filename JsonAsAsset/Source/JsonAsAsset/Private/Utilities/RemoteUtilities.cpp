@@ -4,6 +4,7 @@
 
 #include "HttpManager.h"
 #include "HttpModule.h"
+#include "Modules/LogCategory.h"
 #include "Interfaces/IHttpResponse.h"
 #include "HAL/PlatformProcess.h"
 #include "WindowsPlatformTime.h"

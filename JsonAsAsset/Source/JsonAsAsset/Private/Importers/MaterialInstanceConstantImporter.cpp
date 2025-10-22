@@ -4,7 +4,7 @@
 
 #include "Dom/JsonObject.h"
 #include "Materials/MaterialInstanceConstant.h"
-#include "Utilities/MathUtilities.h"
+#include "Utilities/JsonUtilities.h"
 #include "RHIDefinitions.h"
 
 #include "Materials/MaterialExpressionStaticSwitchParameter.h"

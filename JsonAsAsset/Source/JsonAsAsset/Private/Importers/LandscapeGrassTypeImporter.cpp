@@ -3,7 +3,7 @@
 #include "Importers/LandscapeGrassTypeImporter.h"
 
 #include "LandscapeGrassType.h"
-#include "Utilities/MathUtilities.h"
+#include "Utilities/JsonUtilities.h"
 
 bool ULandscapeGrassTypeImporter::Import() {
 	try {

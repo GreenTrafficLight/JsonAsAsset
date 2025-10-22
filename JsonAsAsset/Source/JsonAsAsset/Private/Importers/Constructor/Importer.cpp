@@ -12,28 +12,6 @@
 #include "FileHelpers.h"
 #include "Json.h"
 
-// ----> Importers
-#include "Importers/CurveFloatImporter.h"
-#include "Importers/CurveVectorImporter.h"
-#include "Importers/CurveLinearColorImporter.h"
-#include "Importers/CurveLinearColorAtlasImporter.h"
-#include "Importers/DataTableImporter.h"
-#include "Importers/SoundAttenuationImporter.h"
-#include "Importers/SoundConcurrencyImporter.h"
-#include "Importers/ReverbEffectImporter.h"
-#include "Importers/SubsurfaceProfileImporter.h"
-#include "Importers/AnimationBaseImporter.h"
-#include "Importers/LandscapeGrassTypeImporter.h"
-#include "Importers/MaterialFunctionImporter.h"
-#include "Importers/MaterialImporter.h"
-#include "Importers/MaterialParameterCollectionImporter.h"
-#include "Importers/MaterialInstanceConstantImporter.h"
-#include "Importers/PhysicalMaterialImporter.h"
-#include "Importers/TextureImporter.h"
-#include "Importers/Types/Blueprint/BlueprintGeneratedClassImporter.h"
-#include "Importers/Types/Blueprint/WidgetBlueprintGeneratedClassImporter.h"
-// <---- Importers
-
 #include "Utilities/AssetUtilities.h"
 #include "Utilities/EngineUtilities.h"
 #include "Widgets/Notifications/SNotificationList.h"
@@ -52,6 +30,7 @@
 
 /* ~~~~~~~~~~~~~ Templated Engine Classes ~~~~~~~~~~~~~ */
 #include "Logging/MessageLog.h"
+#include "Modules/LogCategory.h"
 /* ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ */
 
 #define LOCTEXT_NAMESPACE "IImporter"
@@ -377,6 +356,26 @@ void IImporter::ParsePackageIndex(const TSharedPtr<FJsonObject>* PackageIndex, F
 
 	if (OutName.Contains("."))
 		OutName.Split(".", &OutOuter, &OutName);
+}
+
+TMap<FName, FExportData> IImporter::CreateExports() {
+	TMap<FName, FExportData> OutExports;
+
+	for (const TSharedPtr<FJsonValue> Value : AllJsonObjects) {
+		TSharedPtr<FJsonObject> Object = TSharedPtr<FJsonObject>(Value->AsObject());
+
+		FString ExType = Object->GetStringField(TEXT("Type"));
+		FString Name = Object->GetStringField(TEXT("Name"));
+		FString Outer = "None";
+
+		if (Object->HasField(TEXT("Outer"))) {
+			Outer = Object->GetStringField(TEXT("Outer"));
+		}
+
+		OutExports.Add(FName(*Name), FExportData(ExType, Outer, Object));
+	}
+
+	return OutExports;
 }
 
 void IImporter::SavePackage() const {

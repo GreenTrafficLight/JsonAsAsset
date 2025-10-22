@@ -4,11 +4,9 @@
 
 #include "Dom/JsonObject.h"
 #include "Curves/CurveFloat.h"
-#include "Factories/CurveFactory.h"
-#include "Utilities/MathUtilities.h"
 
 bool UCurveFloatImporter::Import() {
-	try {
+	/*try {
 		// Quick way to access the curve keys
 		TArray<TSharedPtr<FJsonValue>> Keys = JsonObject->GetObjectField("Properties")->GetObjectField("FloatCurve")->GetArrayField("Keys");
 
@@ -17,14 +15,14 @@ bool UCurveFloatImporter::Import() {
 
 		// Add Rich Keys
 		for (TSharedPtr<FJsonValue>& Key : Keys)
-			CurveAsset->FloatCurve.Keys.Add(FMathUtilities::ObjectToRichCurveKey(Key->AsObject()));
+			CurveAsset->FloatCurve.Keys.Add(ObjectToRichCurveKey(Key->AsObject()));
 
 		// Handle edit changes, and add it to the content browser
 		if (!HandleAssetCreation(CurveAsset)) return false;
 	} catch (const char* Exception) {
 		UE_LOG(LogJson, Error, TEXT("%s"), *FString(Exception));
 		return false;
-	}
+	}*/
 
 	return true;
 }

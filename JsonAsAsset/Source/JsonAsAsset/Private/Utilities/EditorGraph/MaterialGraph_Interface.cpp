@@ -3,7 +3,7 @@
 #include "Utilities/EditorGraph/MaterialGraph_Interface.h"
 
 #include "Dom/JsonObject.h"
-#include "Utilities/MathUtilities.h"
+#include "Utilities/JsonUtilities.h"
 #include "Utilities/EngineUtilities.h"
 
 // Material & Material Function
@@ -244,7 +244,7 @@ FExpressionInput UMaterialGraph_Interface::PopulateExpressionInput(const FJsonOb
 			bool UseConstant;
 			if (JsonProperties->TryGetBoolField("UseConstant", UseConstant)) ColorInput->UseConstant = UseConstant;
 			const TSharedPtr<FJsonObject>* Constant;
-			if (JsonProperties->TryGetObjectField("Constant", Constant)) ColorInput->Constant = FMathUtilities::ObjectToLinearColor(Constant->Get()).ToFColor(true);
+			if (JsonProperties->TryGetObjectField("Constant", Constant)) ColorInput->Constant = ObjectToLinearColor(Constant->Get()).ToFColor(true);
 			Input = FExpressionInput(*ColorInput);
 		}
 	}
@@ -262,7 +262,7 @@ FExpressionInput UMaterialGraph_Interface::PopulateExpressionInput(const FJsonOb
 			bool UseConstant;
 			if (JsonProperties->TryGetBoolField("UseConstant", UseConstant)) VectorInput->UseConstant = UseConstant;
 			const TSharedPtr<FJsonObject>* Constant;
-			if (JsonProperties->TryGetObjectField("Constant", Constant)) VectorInput->Constant = FMathUtilities::ObjectToVector(Constant->Get());
+			if (JsonProperties->TryGetObjectField("Constant", Constant)) VectorInput->Constant = ObjectToVector(Constant->Get());
 			Input = FExpressionInput(*VectorInput);
 		}
 	}

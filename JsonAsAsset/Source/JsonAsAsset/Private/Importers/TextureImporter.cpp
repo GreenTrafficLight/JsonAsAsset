@@ -6,7 +6,7 @@
 #include "Factories/TextureRenderTargetFactoryNew.h"
 #include "nvimage/DirectDrawSurface.h"
 #include "nvimage/Image.h"
-#include "Utilities/MathUtilities.h"
+#include "Utilities/JsonUtilities.h"
 #include "Engine/Texture.h"
 #include "Engine/Texture2D.h"
 #include "Utilities/TextureDecode/TextureNVTT.h"
@@ -142,142 +142,14 @@ bool UTextureImporter::ImportTexture2D_Data(UTexture2D* InTexture2D, const TShar
 	return false;
 }
 
-// Handle UTexture
 bool UTextureImporter::ImportTexture_Data(UTexture* InTexture, const TSharedPtr<FJsonObject>& Properties) const {
 	if (InTexture == nullptr) return false;
 
-	double AdjustBrightness;
-	double AdjustBrightnessCurve;
-	double AdjustHue;
-	double AdjustMaxAlpha;
-	double AdjustMinAlpha;
-	double AdjustRGBCurve;
-	double AdjustSaturation;
-	double AdjustVibrance;
-
-	// Adjust parameters
-	if (Properties->TryGetNumberField("AdjustBrightness", AdjustBrightness)) InTexture->AdjustBrightness = AdjustBrightness;
-	if (Properties->TryGetNumberField("AdjustBrightnessCurve", AdjustBrightnessCurve)) InTexture->AdjustBrightnessCurve = AdjustBrightnessCurve;
-	if (Properties->TryGetNumberField("AdjustHue", AdjustHue)) InTexture->AdjustHue = AdjustHue;
-	if (Properties->TryGetNumberField("AdjustMaxAlpha", AdjustMaxAlpha)) InTexture->AdjustMaxAlpha = AdjustMaxAlpha;
-	if (Properties->TryGetNumberField("AdjustMinAlpha", AdjustMinAlpha)) InTexture->AdjustMinAlpha = AdjustMinAlpha;
-	if (Properties->TryGetNumberField("AdjustRGBCurve", AdjustRGBCurve)) InTexture->AdjustRGBCurve = AdjustRGBCurve;
-	if (Properties->TryGetNumberField("AdjustSaturation", AdjustSaturation)) InTexture->AdjustSaturation = AdjustSaturation;
-	if (Properties->TryGetNumberField("AdjustVibrance", AdjustVibrance)) InTexture->AdjustVibrance = AdjustVibrance;
-
-	const TSharedPtr<FJsonObject>* AlphaCoverageThresholds;
-	if (Properties->TryGetObjectField("AlphaCoverageThresholds", AlphaCoverageThresholds))
-		InTexture->AlphaCoverageThresholds = FMathUtilities::ObjectToVector(AlphaCoverageThresholds->Get());
-
-	bool bChromaKeyTexture;
-	bool bFlipGreenChannel;
-	bool bNoTiling;
-	bool bPreserveBorder;
-	bool bUseLegacyGamma;
-
-	if (Properties->TryGetBoolField("bChromaKeyTexture", bChromaKeyTexture)) InTexture->bChromaKeyTexture = bChromaKeyTexture;
-	if (Properties->TryGetBoolField("bFlipGreenChannel", bFlipGreenChannel)) InTexture->bFlipGreenChannel = bFlipGreenChannel;
-	if (Properties->TryGetBoolField("bNoTiling", bNoTiling)) InTexture->bNoTiling = bNoTiling;
-	if (Properties->TryGetBoolField("bPreserveBorder", bPreserveBorder)) InTexture->bPreserveBorder = bPreserveBorder;
-	if (Properties->TryGetBoolField("bUseLegacyGamma", bUseLegacyGamma)) InTexture->bUseLegacyGamma = bUseLegacyGamma;
-
-	const TSharedPtr<FJsonObject>* ChromaKeyColor;
-	double ChromaKeyThreshold;
-	if (Properties->TryGetObjectField("ChromaKeyColor", ChromaKeyColor)) InTexture->ChromaKeyColor = FMathUtilities::ObjectToColor(ChromaKeyColor->Get());
-	if (Properties->TryGetNumberField("ChromaKeyThreshold", ChromaKeyThreshold)) InTexture->ChromaKeyThreshold = ChromaKeyThreshold;
-
-	double CompositePower;
-	FString CompositeTextureMode;
-	if (Properties->TryGetNumberField("CompositePower", CompositePower)) InTexture->CompositePower = CompositePower;
-
-	// --- Enums in UE4.18 need FindObject<UEnum> ---
-	UEnum* CompositeTextureModeEnum = FindObject<UEnum>(ANY_PACKAGE, TEXT("ECompositeTextureMode"), true);
-	UEnum* TextureCompressionQualityEnum = FindObject<UEnum>(ANY_PACKAGE, TEXT("ETextureCompressionQuality"), true);
-	UEnum* TextureCompressionSettingsEnum = FindObject<UEnum>(ANY_PACKAGE, TEXT("TextureCompressionSettings"), true);
-	UEnum* TextureFilterEnum = FindObject<UEnum>(ANY_PACKAGE, TEXT("TextureFilter"), true);
-	UEnum* TextureGroupEnum = FindObject<UEnum>(ANY_PACKAGE, TEXT("TextureGroup"), true);
-	UEnum* MipGenSettingsEnum = FindObject<UEnum>(ANY_PACKAGE, TEXT("TextureMipGenSettings"), true);
-	UEnum* PowerOfTwoModeEnum = FindObject<UEnum>(ANY_PACKAGE, TEXT("ETexturePowerOfTwoSetting"), true);
-
-	if (Properties->TryGetStringField("CompositeTextureMode", CompositeTextureMode) && CompositeTextureModeEnum)
-	{
-		int32 Value = CompositeTextureModeEnum->GetIndexByNameString(CompositeTextureMode);
-		if (Value != INDEX_NONE)
-			InTexture->CompositeTextureMode = static_cast<ECompositeTextureMode>(Value);
-	}
-
-	bool CompressionNoAlpha;
-	bool CompressionNone;
-	FString CompressionQuality;
-	FString CompressionSettings;
-	bool DeferCompression;
-	FString Filter;
-
-	if (Properties->TryGetBoolField("CompressionNoAlpha", CompressionNoAlpha)) InTexture->CompressionNoAlpha = CompressionNoAlpha;
-	if (Properties->TryGetBoolField("CompressionNone", CompressionNone)) InTexture->CompressionNone = CompressionNone;
-
-	if (Properties->TryGetStringField("CompressionQuality", CompressionQuality) && TextureCompressionQualityEnum)
-	{
-		int32 Value = TextureCompressionQualityEnum->GetIndexByNameString(CompressionQuality);
-		if (Value != INDEX_NONE)
-			InTexture->CompressionQuality = static_cast<ETextureCompressionQuality>(Value);
-	}
-
-	if (Properties->TryGetStringField("CompressionSettings", CompressionSettings) && TextureCompressionSettingsEnum)
-	{
-		int32 Value = TextureCompressionSettingsEnum->GetIndexByNameString(CompressionSettings);
-		if (Value != INDEX_NONE)
-			InTexture->CompressionSettings = static_cast<TextureCompressionSettings>(Value);
-	}
-
-	if (Properties->TryGetBoolField("DeferCompression", DeferCompression)) InTexture->DeferCompression = DeferCompression;
-
-	if (Properties->TryGetStringField("Filter", Filter) && TextureFilterEnum)
-	{
-		int32 Value = TextureFilterEnum->GetIndexByNameString(Filter);
-		if (Value != INDEX_NONE)
-			InTexture->Filter = static_cast<TextureFilter>(Value);
-	}
-
-	FString LODGroup;
-	if (Properties->TryGetStringField("LODGroup", LODGroup) && TextureGroupEnum)
-	{
-		int32 Value = TextureGroupEnum->GetIndexByNameString(LODGroup);
-		if (Value != INDEX_NONE)
-			InTexture->LODGroup = static_cast<TextureGroup>(Value);
-	}
-
-	int MaxTextureSize;
-	FString MipGenSettings;
-	if (Properties->TryGetNumberField("MaxTextureSize", MaxTextureSize)) InTexture->MaxTextureSize = MaxTextureSize;
-
-	if (Properties->TryGetStringField("MipGenSettings", MipGenSettings) && MipGenSettingsEnum)
-	{
-		int32 Value = MipGenSettingsEnum->GetIndexByNameString(MipGenSettings);
-		if (Value != INDEX_NONE)
-			InTexture->MipGenSettings = static_cast<TextureMipGenSettings>(Value);
-	}
-
-	const TSharedPtr<FJsonObject>* PaddingColor;
-	FString PowerOfTwoMode;
-	if (Properties->TryGetObjectField("PaddingColor", PaddingColor)) InTexture->PaddingColor = FMathUtilities::ObjectToColor(PaddingColor->Get());
-
-	if (Properties->TryGetStringField("PowerOfTwoMode", PowerOfTwoMode) && PowerOfTwoModeEnum)
-	{
-		int32 Value = PowerOfTwoModeEnum->GetIndexByNameString(PowerOfTwoMode);
-		if (Value != INDEX_NONE)
-			InTexture->PowerOfTwoMode = static_cast<ETexturePowerOfTwoSetting::Type>(Value);
-	}
-
-	bool SRGB;
-	if (Properties->TryGetBoolField("SRGB", SRGB)) InTexture->SRGB = SRGB;
-
-	FString LightingGuid;
-	if (Properties->TryGetStringField("LightingGuid", LightingGuid)) {
-		FGuid GUID;
-		FGuid::Parse(LightingGuid, GUID);
-		InTexture->SetLightingGuid();
-	}
+	GetObjectSerializer()->DeserializeObjectProperties(RemovePropertiesShared(Properties,
+		{
+			"ImportedSize",
+			"LODBias"
+		}), InTexture);
 
 	return false;
 }

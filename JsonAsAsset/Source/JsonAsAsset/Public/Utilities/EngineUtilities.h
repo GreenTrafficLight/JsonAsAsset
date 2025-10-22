@@ -1,4 +1,4 @@
-// Copyright Epic Games, Inc. All Rights Reserved.
+﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -6,6 +6,69 @@
 #include "Widgets/Notifications/SNotificationList.h"
 #include "Utilities/Serializers/PropertyUtilities.h"
 #include "Settings/JsonAsAssetSettings.h"
+#include "Modules/LogCategory.h"
+
+/**
+ * Get the asset currently selected in the Content Browser.
+ *
+ * @return Selected Asset
+ */
+template <typename T>
+T* GetSelectedAsset(const bool SuppressErrors = false, FString OptionalAssetNameCheck = "") {
+	const FContentBrowserModule& ContentBrowserModule = FModuleManager::LoadModuleChecked<FContentBrowserModule>("ContentBrowser");
+	TArray<FAssetData> SelectedAssets;
+	ContentBrowserModule.Get().GetSelectedAssets(SelectedAssets);
+
+	if (SelectedAssets.Num() == 0) {
+		if (SuppressErrors == true) {
+			return nullptr;
+		}
+
+		GLog->Log("JsonAsAsset: [GetSelectedAsset] None selected, returning nullptr.");
+
+		const FText DialogText = FText::Format(
+			FText::FromString(TEXT("Importing an asset of type '{0}' requires a base asset selected to modify. Select one in your content browser.")),
+			FText::FromString(T::StaticClass()->GetName())
+		);
+
+		FMessageDialog::Open(EAppMsgType::Ok, DialogText);
+
+		return nullptr;
+	}
+
+	UObject* SelectedAsset = SelectedAssets[0].GetAsset();
+	T* CastedAsset = Cast<T>(SelectedAsset);
+
+	if (!CastedAsset) {
+		if (SuppressErrors == true) {
+			return nullptr;
+		}
+
+		GLog->Log("JsonAsAsset: [GetSelectedAsset] Selected asset is not of the required class, returning nullptr.");
+
+		const FText DialogText = FText::Format(
+			FText::FromString(TEXT("The selected asset is not of type '{0}'. Please select a valid asset.")),
+			FText::FromString(T::StaticClass()->GetName())
+		);
+
+		FMessageDialog::Open(EAppMsgType::Ok, DialogText);
+
+		return nullptr;
+	}
+
+	if (CastedAsset && OptionalAssetNameCheck != "" && !CastedAsset->GetName().Equals(OptionalAssetNameCheck)) {
+		CastedAsset = nullptr;
+	}
+
+	return CastedAsset;
+}
+
+inline void SpawnPrompt(const FString& Title, const FString& Text) {
+	FText DialogTitle = FText::FromString(Title);
+	const FText DialogMessage = FText::FromString(Text);
+
+	FMessageDialog::Open(EAppMsgType::Ok, DialogMessage);
+}
 
 inline TSharedPtr<FJsonObject> GetExport(const FString& Type, TArray<TSharedPtr<FJsonValue>> AllJsonObjects, const bool bGetProperties = false) {
 	for (const TSharedPtr<FJsonValue> Value : AllJsonObjects) {
@@ -157,6 +220,22 @@ inline TSharedPtr<FJsonObject> KeepPropertiesShared(const TSharedPtr<FJsonObject
 	}
 
 	return RawSharedPtrData;
+}
+
+/* Simple handler for JsonArray */
+inline auto ProcessJsonArrayField(const TSharedPtr<FJsonObject>& ObjectField, const FString& ArrayFieldName,
+	const TFunction<void(const TSharedPtr<FJsonObject>&)>& ProcessObjectFunction) -> void
+{
+	const TArray<TSharedPtr<FJsonValue>>* JsonArray;
+
+	if (ObjectField->TryGetArrayField(ArrayFieldName, JsonArray)) {
+		for (const auto& JsonValue : *JsonArray) {
+			const TSharedPtr<FJsonObject> JsonItem = JsonValue->AsObject();
+			if (JsonItem.IsValid()) {
+				ProcessObjectFunction(JsonItem);
+			}
+		}
+	}
 }
 
 inline TSubclassOf<UObject> LoadClassFromPath(const FString& ObjectName, const FString& ObjectPath) {

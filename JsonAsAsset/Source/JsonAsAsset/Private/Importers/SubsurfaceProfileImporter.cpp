@@ -3,7 +3,6 @@
 #include "Importers/SubsurfaceProfileImporter.h"
 
 #include "Engine/SubsurfaceProfile.h"
-#include "Utilities/MathUtilities.h"
 
 bool USubsurfaceProfileImporter::Import() {
 	try {

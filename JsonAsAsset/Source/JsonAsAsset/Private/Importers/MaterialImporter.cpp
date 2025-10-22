@@ -7,7 +7,7 @@
 #include "Framework/Notifications/NotificationManager.h"
 #include "Dom/JsonObject.h"
 #include "Factories/MaterialFactoryNew.h"
-#include "Utilities/MathUtilities.h"
+#include "Utilities/JsonUtilities.h"
 #include "MaterialGraph/MaterialGraph.h"
 
 #include "Settings/JsonAsAssetSettings.h"
