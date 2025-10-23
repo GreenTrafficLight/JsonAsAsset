@@ -21,5 +21,5 @@ public:
 	bool ImportTexture_Data(UTexture* InTexture, const TSharedPtr<FJsonObject>& Properties) const;
 
 private:
-	void GetDecompressedTextureData(uint8* Data, uint8*& OutData, const int SizeX, const int SizeY, const int TotalSize, const EPixelFormat Format) const;
+	static void GetDecompressedTextureData(uint8* Data, uint8*& OutData, const int SizeX, const int SizeY, const int SizeZ, const int TotalSize, const EPixelFormat Format);
 };

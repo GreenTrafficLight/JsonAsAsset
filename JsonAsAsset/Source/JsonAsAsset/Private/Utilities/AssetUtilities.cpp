@@ -11,7 +11,7 @@
 #include "Dom/JsonObject.h"
 
 #include "Importers/TextureImporter.h"
-#include "Importers/MaterialParameterCollectionImporter.h"
+#include "Importers/Types/Materials/MaterialParameterCollectionImporter.h"
 #include "Importers/Types/Meshes/StaticMeshImporter.h"
 
 #include "HttpModule.h"
@@ -25,81 +25,103 @@
 #include "Utilities/AssetUtilities.h"
 #include "Utilities/RemoteUtilities.h"
 
+/* CreateAssetPackage Implementations ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ */
 UPackage* FAssetUtilities::CreateAssetPackage(const FString& FullPath) {
-	UPackage* Package = CreatePackage(nullptr, *FullPath);
-	UPackage* _ = Package->GetOutermost(); // ??
+	UPackage* Package = CreatePackage(
+		/* 4.25, 4.26.0 and below need an Outer */
+#if UE4_25_BELOW || (UE4_26_0)
+		nullptr,
+#endif
+		*FullPath);
 	Package->FullyLoad();
 
 	return Package;
 }
 
-UPackage* FAssetUtilities::CreateAssetPackage(const FString& Name, const FString& OutputPath) {
-	UPackage* Ignore = nullptr;
-	return CreateAssetPackage(Name, OutputPath, Ignore);
-}
-
-UPackage* FAssetUtilities::CreateAssetPackage(const FString& Name, const FString& OutputPath, UPackage*& OutOutermostPkg) {
+UPackage* FAssetUtilities::CreateAssetPackage(const FString& Name, const FString& OutputPath, UPackage*& OutOutermostPkg, FString& FailureReason) {
 	const UJsonAsAssetSettings* Settings = GetDefault<UJsonAsAssetSettings>();
-	FString ModifiablePath;
+	
+	FString ModifiablePath = OutputPath;
 
 	// References Automatically Formatted
 	if ((!OutputPath.StartsWith("/Game/") && !OutputPath.StartsWith("/Plugins/")) && OutputPath.Contains("Content")) {
-		OutputPath.Split(*(Settings->ExportDirectory.Path + "/"), nullptr, &ModifiablePath, ESearchCase::IgnoreCase, ESearchDir::FromStart);
+		/* if (!Settings->AssetSettings.GameName.IsEmpty()) {
+			ModifiablePath = ModifiablePath.Replace(*(Settings->AssetSettings.GameName + "/Content"), TEXT("/Game"));
+			ModifiablePath.Split(*(Settings->ExportDirectory.Path + "/"), nullptr, &ModifiablePath, ESearchCase::IgnoreCase, ESearchDir::FromStart);
+			ModifiablePath.Split("/", &ModifiablePath, nullptr, ESearchCase::IgnoreCase, ESearchDir::FromEnd);
+			ModifiablePath += "/";
+		} */
+
+		ModifiablePath.Split(*(Settings->ExportDirectory.Path + "/"), nullptr, &ModifiablePath, ESearchCase::IgnoreCase, ESearchDir::FromStart);
 		ModifiablePath.Split("/", nullptr, &ModifiablePath, ESearchCase::IgnoreCase, ESearchDir::FromStart);
 		ModifiablePath.Split("/", &ModifiablePath, nullptr, ESearchCase::IgnoreCase, ESearchDir::FromEnd);
-		// Ex: RestPath: Plugins/ContentLibraries/EpicBaseTextures
-		// Ex: RestPath: Content/Athena
-		bool bIsPlugin = ModifiablePath.StartsWith("Plugins");
+		/* Ex: RestPath: Plugins/Folder/BaseTextures */
+		/* Ex: RestPath: Content/SecondaryFolder */
+		const bool bIsPlugin = ModifiablePath.StartsWith("Plugins");
 
+		/* Plugins/Folder/BaseTextures -> Folder/BaseTextures */
 		if (bIsPlugin) {
-			FString RootName; {
-				ModifiablePath.Split("/", nullptr, &RootName, ESearchCase::IgnoreCase, ESearchDir::FromStart);
-				RootName.Split("/", nullptr, &RootName, ESearchCase::IgnoreCase, ESearchDir::FromStart);
-				RootName.Split("/", &RootName, nullptr, ESearchCase::IgnoreCase, ESearchDir::FromStart);
-			}
+			FString PluginName = ModifiablePath;
+			FString RemainingPath;
+			/* PluginName = TestName */
+			/* RemainingPath = SetupAssets/Materials */
+			ModifiablePath.Split("/Content/", &PluginName, &RemainingPath, ESearchCase::IgnoreCase, ESearchDir::FromStart);
+			PluginName.Split("/", nullptr, &PluginName, ESearchCase::IgnoreCase, ESearchDir::FromEnd);
 
-			if (IPluginManager::Get().FindPlugin(RootName).Get() == nullptr) {
-				ModifiablePath = ModifiablePath.Replace(TEXT("Plugins/"), TEXT("Game/Plugins/")).Replace(TEXT("GameFeatures/"), TEXT("")).Replace(TEXT("Content/"), TEXT(""));
-			} else {
-				ModifiablePath = ModifiablePath.Replace(TEXT("Plugins/"), TEXT("")).Replace(TEXT("GameFeatures/"), TEXT("")).Replace(TEXT("Content/"), TEXT(""));
-			}
-		} else ModifiablePath = ModifiablePath.Replace(TEXT("Content"), TEXT("Game"));
+			/* /PluginName/Materials */
+			ModifiablePath = PluginName + "/" + RemainingPath;
+		}
+		/* Content/SecondaryFolder -> Game/SecondaryFolder */
+		else {
+			ModifiablePath = ModifiablePath.Replace(TEXT("Content"), TEXT("Game"));
+		}
 
-		// Game/Plugins/ContentLibraries/EpicBaseTextures -> /Game/Plugins/ContentLibraries/EpicBaseTextures/
 		ModifiablePath = "/" + ModifiablePath + "/";
 
-		// Check if plugin exists
+		/* Check if plugin exists */
 		if (bIsPlugin) {
 			FString PluginName;
 			ModifiablePath.Split("/", nullptr, &PluginName, ESearchCase::IgnoreCase, ESearchDir::FromStart);
 			PluginName.Split("/", &PluginName, nullptr, ESearchCase::IgnoreCase, ESearchDir::FromStart);
 
-			if (IPluginManager::Get().FindPlugin(PluginName).Get() == nullptr)
+			if (!IPluginManager::Get().FindPlugin(PluginName).IsValid())
 				CreatePlugin(PluginName);
 		}
 	}
 	else {
 		FString RootName; {
-			OutputPath.Split("/", nullptr, &RootName, ESearchCase::IgnoreCase, ESearchDir::FromStart);
+			ModifiablePath.Split("/", nullptr, &RootName, ESearchCase::IgnoreCase, ESearchDir::FromStart);
 			RootName.Split("/", &RootName, nullptr, ESearchCase::IgnoreCase, ESearchDir::FromStart);
 		}
 
-		// Missing Plugin: Create it
-		if (RootName != "Game" && RootName != "Engine" && IPluginManager::Get().FindPlugin(RootName).Get() == nullptr)
+		if (RootName != "Game" && RootName != "Engine" && !IPluginManager::Get().FindPlugin(RootName).IsValid()) {
 			CreatePlugin(RootName);
+		}
 
-		ModifiablePath = OutputPath;
 		ModifiablePath.Split("/", &ModifiablePath, nullptr, ESearchCase::IgnoreCase, ESearchDir::FromEnd);
 
 		ModifiablePath = ModifiablePath + "/";
 	}
 
 	const FString PathWithGame = ModifiablePath + Name;
-	UPackage* Package = CreatePackage(nullptr, *PathWithGame);
+
+	if (PathWithGame.Contains(TEXT("//"), ESearchCase::CaseSensitive)) {
+		FailureReason = "Attempted to create a package with name containing double slashes.\n\nUpdate your configuration to use a valid Export Directory.";
+		return nullptr;
+	}
+
+	UPackage* Package = CreateAssetPackage(*PathWithGame);
 	OutOutermostPkg = Package->GetOutermost();
 	Package->FullyLoad();
 
 	return Package;
+}
+
+UPackage* FAssetUtilities::CreateAssetPackage(const FString& Name, const FString& OutputPath) {
+	UPackage* Ignore = nullptr; /* Put here because &nullptr doesn't work */
+	FString StringIgnore = "";
+
+	return CreateAssetPackage(Name, OutputPath, Ignore, StringIgnore);
 }
 
 // Constructing assets ect..

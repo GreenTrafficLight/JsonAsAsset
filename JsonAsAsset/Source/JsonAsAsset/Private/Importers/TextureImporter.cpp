@@ -14,17 +14,27 @@
 #include "Engine/TextureDefines.h"
 
 bool UTextureImporter::ImportTexture2D(UTexture*& OutTexture2D, TArray<uint8>& Data, const TSharedPtr<FJsonObject>& Properties) const {
-	const TSharedPtr<FJsonObject> SubObjectProperties = Properties->GetObjectField("Properties");
+	const TSharedPtr<FJsonObject> SubObjectProperties = Properties->GetObjectField(TEXT("Properties"));
 
-	// NEW: .bin support
 	UTexture2D* Texture2D = NewObject<UTexture2D>(OutermostPkg, UTexture2D::StaticClass(), *AssetName, RF_Standalone | RF_Public);
+
+#if ENGINE_UE5
+	Texture2D->SetPlatformData(new FTexturePlatformData());
+#else
 	Texture2D->PlatformData = new FTexturePlatformData();
+#endif
 
 	ImportTexture2D_Data(Texture2D, SubObjectProperties);
-	FTexturePlatformData* PlatformData = Texture2D->PlatformData;
 
-	const int SizeX = Properties->GetNumberField("SizeX");
-	const int SizeY = Properties->GetNumberField("SizeY");
+#if ENGINE_UE5
+	FTexturePlatformData* PlatformData = Texture2D->GetPlatformData();
+#else
+	FTexturePlatformData* PlatformData = Texture2D->PlatformData;
+#endif
+
+	const int SizeX = Properties->GetNumberField(TEXT("SizeX"));
+	const int SizeY = Properties->GetNumberField(TEXT("SizeY"));
+	constexpr int SizeZ = 1; /* Tex2D doesn't have depth */
 
 	const TArray<TSharedPtr<FJsonValue>>* TextureMipsPtr;
 	Properties->TryGetArrayField(TEXT("Mips"), TextureMipsPtr);
@@ -36,25 +46,35 @@ bool UTextureImporter::ImportTexture2D(UTexture*& OutTexture2D, TArray<uint8>& D
 	}
 
 	FString PixelFormat;
-	if (Properties->TryGetStringField("PixelFormat", PixelFormat)) PlatformData->PixelFormat = static_cast<EPixelFormat>(Texture2D->GetPixelFormatEnum()->GetValueByNameString(PixelFormat));
+	if (Properties->TryGetStringField(TEXT("PixelFormat"), PixelFormat)) {
+		PlatformData->PixelFormat = static_cast<EPixelFormat>(Texture2D->GetPixelFormatEnum()->GetValueByNameString(PixelFormat));
+	}
 
 	int Size = SizeX * SizeY * (PlatformData->PixelFormat == PF_BC6H ? 16 : 4);
-	if (PlatformData->PixelFormat == PF_FloatRGBA || PlatformData->PixelFormat == PF_G16) Size = Data.Num();
+	if (PlatformData->PixelFormat == PF_B8G8R8A8 || PlatformData->PixelFormat == PF_FloatRGBA || PlatformData->PixelFormat == PF_G16) Size = Data.Num();
 	uint8* DecompressedData = static_cast<uint8*>(FMemory::Malloc(Size));
 
-	GetDecompressedTextureData(Data.GetData(), DecompressedData, SizeX, SizeY, Size, PlatformData->PixelFormat);
+	GetDecompressedTextureData(Data.GetData(), DecompressedData, SizeX, SizeY, SizeZ, Size, PlatformData->PixelFormat);
 
 	ETextureSourceFormat Format = TSF_BGRA8;
 	if (Texture2D->CompressionSettings == TC_HDR) Format = TSF_RGBA16F;
+#if UE4_18_BELOW
 	if (PlatformData->PixelFormat == PF_G16) Format = TSF_G8;
+#else
+	if (PlatformData->PixelFormat == PF_G16) Format = TSF_G16;
+#endif
 	Texture2D->Source.Init(SizeX, SizeY, 1, 1, Format);
 	uint8_t* Dest = Texture2D->Source.LockMip(0);
 	FMemory::Memcpy(Dest, DecompressedData, Size);
 	Texture2D->Source.UnlockMip(0);
 
+	if (Texture2D->LODGroup == 255) {
+		Texture2D->LODGroup = TextureGroup::TEXTUREGROUP_World;
+	}
+
 	Texture2D->UpdateResource();
 
-	if (Texture2D) {
+	if (Texture2D && Texture2D->IsValidLowLevel() && Texture2D != nullptr) {
 		OutTexture2D = Texture2D;
 		return true;
 	}
@@ -154,8 +174,10 @@ bool UTextureImporter::ImportTexture_Data(UTexture* InTexture, const TSharedPtr<
 	return false;
 }
 
-void UTextureImporter::GetDecompressedTextureData(uint8* Data, uint8*& OutData, const int SizeX, const int SizeY, const int TotalSize, const EPixelFormat Format) const {
-	if (Format == PF_BC7) {
+void UTextureImporter::GetDecompressedTextureData(uint8* Data, uint8*& OutData, const int SizeX, const int SizeY, const int SizeZ, const int TotalSize, const EPixelFormat Format) {
+	/* NOTE: Not all formats are supported, feel free to add if needed. Formats may need other dependencies. */
+	switch (Format) {
+	case PF_BC7: {
 		detexTexture Texture;
 		Texture.data = Data;
 		Texture.format = DETEX_TEXTURE_FORMAT_BPTC;
@@ -163,8 +185,12 @@ void UTextureImporter::GetDecompressedTextureData(uint8* Data, uint8*& OutData, 
 		Texture.height = SizeY;
 		Texture.width_in_blocks = SizeX / 4;
 		Texture.height_in_blocks = SizeY / 4;
+
 		detexDecompressTextureLinear(&Texture, OutData, DETEX_PIXEL_FORMAT_BGRA8);
-	} else if (Format == PF_BC6H) {
+	}
+				 break;
+
+	case PF_BC6H: {
 		detexTexture Texture;
 		Texture.data = Data;
 		Texture.format = DETEX_TEXTURE_FORMAT_BPTC_FLOAT;
@@ -172,10 +198,31 @@ void UTextureImporter::GetDecompressedTextureData(uint8* Data, uint8*& OutData, 
 		Texture.height = SizeY;
 		Texture.width_in_blocks = SizeX / 4;
 		Texture.height_in_blocks = SizeY / 4;
+
 		detexDecompressTextureLinear(&Texture, OutData, DETEX_PIXEL_FORMAT_BGRA8);
-	} else if (Format == PF_G8) {
+	}
+				  break;
+
+	case PF_DXT5: {
+		detexTexture Texture;
+		{
+			Texture.data = Data;
+			Texture.format = DETEX_TEXTURE_FORMAT_BC3;
+			Texture.width = SizeX;
+			Texture.height = SizeY;
+			Texture.width_in_blocks = SizeX / 4;
+			Texture.height_in_blocks = SizeY / 4;
+		}
+
+		detexDecompressTextureLinear(&Texture, OutData, DETEX_PIXEL_FORMAT_BGRA8);
+	}
+				  break;
+
+				  /* Gray/Grey, not Green, typically actually uses a red format with replication of R to RGB*/
+	case PF_G8: {
 		const uint8* s = Data;
 		uint8* d = OutData;
+
 		for (int i = 0; i < SizeX * SizeY; i++) {
 			const uint8 b = *s++;
 			*d++ = b;
@@ -183,9 +230,21 @@ void UTextureImporter::GetDecompressedTextureData(uint8* Data, uint8*& OutData, 
 			*d++ = b;
 			*d++ = 255;
 		}
-	} else if (Format == PF_B8G8R8A8 || Format == PF_FloatRGBA || Format == PF_G16) {
+	}
+				break;
+
+				/*
+				 * FloatRGBA: 16F
+				 * G16: Gray/Grey like G8
+				*/
+	case PF_B8G8R8A8:
+	case PF_FloatRGBA:
+	case PF_G16: {
 		FMemory::Memcpy(OutData, Data, TotalSize);
-	} else {
+	}
+				 break;
+
+	default: {
 		nv::DDSHeader Header;
 		nv::Image Image;
 
@@ -203,19 +262,18 @@ void UTextureImporter::GetDecompressedTextureData(uint8* Data, uint8*& OutData, 
 		case PF_DXT3:
 			FourCC = FOURCC_DXT3;
 			break;
-		case PF_DXT5:
-			FourCC = FOURCC_DXT5;
-			break;
 		default: FourCC = 0;
 		}
 
 		Header.setFourCC(FourCC);
 		Header.setWidth(SizeX);
 		Header.setHeight(SizeY);
+		Header.setDepth(SizeZ);
 		Header.setNormalFlag(Format == PF_BC5);
-		DecodeDDS(Data, SizeX, SizeY, Header, Image);
+		DecodeDDS(Data, SizeX, SizeY, SizeZ, Header, Image);
 
-		// Fallback to raw data
 		FMemory::Memcpy(OutData, Image.pixels(), TotalSize);
+	}
+			 break;
 	}
 }

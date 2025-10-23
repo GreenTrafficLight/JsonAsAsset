@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "Runtime/Launch/Resources/Version.h"
+
 /*
  * This file is used to allow the same code used on UE5 to be used on UE4,
  * it contains structures and classes to replicate missing classes/structs.
@@ -34,6 +36,12 @@
 #define UE5_3_BEYOND 1
 #else
 #define UE5_3_BEYOND 0
+#endif
+
+#if ENGINE_UE4 && ENGINE_MINOR_VERSION >= 25
+#define UE4_25_BEYOND 1
+#else
+#define UE4_25_BEYOND 0
 #endif
 
 #if ENGINE_MAJOR_VERSION == 4
@@ -76,6 +84,12 @@
 #define UE4_26_BELOW 1
 #else
 #define UE4_26_BELOW 0
+#endif
+
+#if ENGINE_UE4 && ENGINE_MINOR_VERSION <= 18
+#define UE4_18_BELOW 1
+#else
+#define UE4_18_BELOW 0
 #endif
 
 #if ENGINE_UE5 && ENGINE_MINOR_VERSION >= 2

@@ -1,6 +1,6 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Importers/PhysicalMaterialImporter.h"
+#include "Importers/Types/Materials/PhysicalMaterialImporter.h"
 
 #include "PhysicalMaterials/PhysicalMaterial.h"
 

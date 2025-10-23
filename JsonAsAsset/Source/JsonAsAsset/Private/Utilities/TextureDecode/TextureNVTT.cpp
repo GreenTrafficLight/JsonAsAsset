@@ -1,16 +1,15 @@
 #include "TextureNVTT.h"
-
 #include "nvcore/Stream.h"
 
 class NVTTStream : public nv::Stream {
 public:
 	NVTTStream(uint8* mem0, uint size0, uint8* mem1, uint size1, bool isLoading)
 		: m_mem0(mem0)
-		  , m_mem1(mem1)
-		  , m_pos(0)
-		  , m_size0(size0)
-		  , m_size1(size1)
-		  , m_loading(isLoading) {
+		, m_mem1(mem1)
+		, m_pos(0)
+		, m_size0(size0)
+		, m_size1(size1)
+		, m_loading(isLoading) {
 	}
 
 	virtual uint serialize(void* data, uint len) {
@@ -21,7 +20,8 @@ public:
 		if (m_pos < m_size0) {
 			left = m_size0 - m_pos;
 			ptr = m_mem0 + m_pos;
-		} else {
+		}
+		else {
 			left = m_size1 - (m_pos - m_size0);
 			ptr = m_mem1 + (m_pos - m_size0);
 		}
@@ -84,9 +84,9 @@ private:
 	bool m_loading;
 };
 
-void DecodeDDS(const unsigned char* Data, int USize, int VSize, nv::DDSHeader& header, nv::Image& image) {
+void DecodeDDS(const unsigned char* Data, int SizeX, int SizeY, int SizeZ, nv::DDSHeader& header, nv::Image& image) {
 	uint8 dummy[128];
-	NVTTStream* stream = new NVTTStream(dummy, sizeof(dummy), const_cast<unsigned char*>(Data), USize * VSize * 4, true); // deleted in DirectDrawSurface destructor
+	NVTTStream* stream = new NVTTStream(dummy, sizeof(dummy), const_cast<unsigned char*>(Data), SizeX * SizeY * SizeZ * 4, true); // deleted in DirectDrawSurface destructor
 	nv::DirectDrawSurface dds(stream); // will try to read DDS header, it's zeroed
 	dds.header = header; // set real header contents
 	dds.mipmap(&image, 0, 0);

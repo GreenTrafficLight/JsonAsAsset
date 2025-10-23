@@ -238,6 +238,13 @@ inline auto ProcessJsonArrayField(const TSharedPtr<FJsonObject>& ObjectField, co
 	}
 }
 
+/* ReSharper disable once CppParameterNeverUsed */
+inline void SetNotificationSubText(FNotificationInfo& Notification, const FText& SubText) {
+#if ENGINE_UE5
+	Notification.SubText = SubText;
+#endif
+}
+
 inline TSubclassOf<UObject> LoadClassFromPath(const FString& ObjectName, const FString& ObjectPath) {
 	const FString FullPath = ObjectPath + TEXT(".") + ObjectName;
 	UObject* LoadedObject = StaticLoadObject(UObject::StaticClass(), nullptr, *FullPath);
