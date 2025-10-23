@@ -128,7 +128,7 @@ public:
 		return true;
 	}
 
-	static  bool CanImport(const FString& ImporterType) { 
+	static  bool CanImport(const FString& ImporterType, const bool IsCloud = false, const UClass* Class = nullptr) {
 		for (auto& Pair : GetFactoryRegistry()) {
 			/*if (!Settings->bEnableExperiments) {
 				if (ExperimentalAssetTypes.Contains(AssetType)) return nullptr;
@@ -201,7 +201,7 @@ public:
 	/*
 	 * Searches for importable asset types and imports them.
 	 */
-	bool ReadExportsAndImport(TArray<TSharedPtr<FJsonValue>> Exports, FString File, bool bHideNotifications = false);
+	static bool ReadExportsAndImport(TArray<TSharedPtr<FJsonValue>> Exports, FString File, bool bHideNotifications = false);
 
 public:
 	UObject* ParentObject;

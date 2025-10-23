@@ -23,7 +23,7 @@ public:
 	template <class T = UObject>
 	static bool ConstructAsset(const FString& Path, const FString& Type, TObjectPtr<T>& OutObject, bool& bSuccess);
 
-	static bool Construct_TypeTexture(const FString& Path, UTexture*& OutTexture);
+	static bool Construct_TypeTexture(const FString& Path, const FString& FetchPath, UTexture*& OutTexture);
 	static bool Construct_TypeStreamableRenderAsset(const FString& Path, UStaticMesh*& OutStaticMesh);
 
 	static void CreatePlugin(FString PluginName);
