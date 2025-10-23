@@ -1,16 +1,18 @@
-// Copyright Epic Games, Inc. All Rights Reserved.
+/* Copyright JsonAsAsset Contributors 2024-2025 */
 
 #pragma once
 
-#include "Utilities/EditorGraph/MaterialGraph_Interface.h"
-#include "Widgets/Notifications/SNotificationList.h"
-#include "Framework/Notifications/NotificationManager.h"
+#include "Importers/Constructor/Graph/MaterialGraph.h"
 
-class UMaterialFunctionImporter : public UMaterialGraph_Interface {
+class IMaterialFunctionImporter : public IMaterialGraph {
 public:
-	UMaterialFunctionImporter(const FString& FileName, const FString& FilePath, const TSharedPtr<FJsonObject>& JsonObject, UPackage* Package, UPackage* OutermostPkg, const TArray<TSharedPtr<FJsonValue>>& AllJsonObjects):
-		UMaterialGraph_Interface(FileName, FilePath, JsonObject, Package, OutermostPkg, AllJsonObjects) {
+	IMaterialFunctionImporter(const FString& AssetName, const FString& FilePath, const TSharedPtr<FJsonObject>& JsonObject, UPackage* Package, UPackage* OutermostPkg, const TArray<TSharedPtr<FJsonValue>>& AllJsonObjects, UClass* AssetClass) :
+		IMaterialGraph(AssetName, FilePath, JsonObject, Package, OutermostPkg, AllJsonObjects, AssetClass) {
 	}
 
 	virtual bool Import() override;
 };
+
+REGISTER_IMPORTER(IMaterialFunctionImporter, {
+	"MaterialFunction"
+}, "Material Assets");

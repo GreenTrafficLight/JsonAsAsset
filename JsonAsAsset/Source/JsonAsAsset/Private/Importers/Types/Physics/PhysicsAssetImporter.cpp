@@ -61,6 +61,7 @@ bool IPhysicsAssetImporter::Import() {
 		GetObjectSerializer()->DeserializeObjectProperties(ExportProperties, PhysicsConstraintTemplate);
 
 		/* For caching. IMPORTANT! DO NOT REMOVE! */
+#if UE4_18_BELOW
 		const FName CurrentProfileName = PhysicsConstraintTemplate->GetCurrentConstraintProfileName();
 		if (CurrentProfileName == NAME_None)
 		{
@@ -76,7 +77,9 @@ bool IPhysicsAssetImporter::Import() {
 				}
 			}
 		}
-		//PhysicsConstraintTemplate->UpdateProfileInstance();
+#else
+		PhysicsConstraintTemplate->UpdateProfileInstance();
+#endif
 		
 	});
 

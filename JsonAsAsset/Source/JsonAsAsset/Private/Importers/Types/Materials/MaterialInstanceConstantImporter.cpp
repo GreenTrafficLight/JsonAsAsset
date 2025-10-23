@@ -7,7 +7,163 @@
 #include "MaterialShared.h"
 
 bool IMaterialInstanceConstantImporter::Import() {
-	return true;
+	UMaterialInstanceConstant* MaterialInstanceConstant = NewObject<UMaterialInstanceConstant>(Package, UMaterialInstanceConstant::StaticClass(), *AssetName, RF_Public | RF_Standalone);
+
+	/* Specific fix for 4.16 engines */
+	const TArray<FString> ParameterFields = {
+		TEXT("ScalarParameterValues"),
+		TEXT("TextureParameterValues"),
+		TEXT("VectorParameterValues")
+	};
+
+	for (const FString& FieldName : ParameterFields) {
+		if (AssetData->HasField(FieldName)) {
+			TArray<TSharedPtr<FJsonValue>> Params = AssetData->GetArrayField(FieldName);
+			ConvertParameterNamesToInfos(Params);
+			AssetData->SetArrayField(FieldName, Params);
+		}
+	}
+
+	GetObjectSerializer()->DeserializeObjectProperties(RemovePropertiesShared(AssetData,
+		{
+			"CachedReferencedTextures"
+		}), MaterialInstanceConstant);
+
+	TArray<TSharedPtr<FJsonValue>> StaticSwitchParametersObjects;
+	TArray<TSharedPtr<FJsonValue>> StaticComponentMaskParametersObjects;
+
+	/* Optional Editor Data [contains static switch parameters] ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ */
+	const TSharedPtr<FJsonObject> EditorOnlyData = GetExport("MaterialInstanceEditorOnlyData", AllJsonObjects, true);
+
+	if (EditorOnlyData.IsValid()) {
+		if (EditorOnlyData->HasField(TEXT("StaticParameters"))) {
+			ReadStaticParameters(EditorOnlyData->GetObjectField(TEXT("StaticParameters")), StaticSwitchParametersObjects, StaticComponentMaskParametersObjects);
+		}
+	}
+
+	/* Read from potential properties inside of asset data */
+	if (AssetData->HasField(TEXT("StaticParametersRuntime"))) {
+		ReadStaticParameters(AssetData->GetObjectField(TEXT("StaticParametersRuntime")), StaticSwitchParametersObjects, StaticComponentMaskParametersObjects);
+	}
+	if (AssetData->HasField(TEXT("StaticParameters"))) {
+		ReadStaticParameters(AssetData->GetObjectField(TEXT("StaticParameters")), StaticSwitchParametersObjects, StaticComponentMaskParametersObjects);
+	}
+
+	/* ~~~~~~~~~ STATIC PARAMETERS ~~~~~~~~~~~ */
+#if UE5_2_BEYOND || UE4_27_BELOW
+	FStaticParameterSet NewStaticParameterSet; /* Unreal Engine 5.2/4.26 and beyond have a different method */
+#endif
+
+	TArray<FStaticSwitchParameter> StaticSwitchParameters;
+	for (const TSharedPtr<FJsonValue> StaticParameter_Value : StaticSwitchParametersObjects) {
+		TSharedPtr<FJsonObject> ParameterObject = StaticParameter_Value->AsObject();
+		TSharedPtr<FJsonObject> Local_MaterialParameterInfo = ParameterObject->GetObjectField(TEXT("ParameterInfo"));
+
+#if UE4_18_BELOW
+		FName MaterialParameterParameterName = FName(*Local_MaterialParameterInfo->GetStringField(TEXT("Name")));
+		FGuid MaterialParameterExpressionGUID;
+		FGuid::Parse(ParameterObject->GetStringField(TEXT("ExpressionGUID")), MaterialParameterExpressionGUID);
+#else
+		/* Create Material Parameter Info */
+		FMaterialParameterInfo MaterialParameterParameterInfo = FMaterialParameterInfo(
+			FName(Local_MaterialParameterInfo->GetStringField(TEXT("Name"))),
+			static_cast<EMaterialParameterAssociation>(StaticEnum<EMaterialParameterAssociation>()->GetValueByNameString(Local_MaterialParameterInfo->GetStringField(TEXT("Association")))),
+			Local_MaterialParameterInfo->GetIntegerField(TEXT("Index"))
+		);
+#endif
+
+		/* Now, create the actual switch parameter */
+		FStaticSwitchParameter Parameter = FStaticSwitchParameter(
+#if UE4_18_BELOW
+			MaterialParameterParameterName,
+#else
+			MaterialParameterParameterInfo,
+#endif
+			ParameterObject->GetBoolField(TEXT("Value")),
+			ParameterObject->GetBoolField(TEXT("bOverride")),
+#if UE4_18_BELOW
+			MaterialParameterExpressionGUID
+#else
+			FGuid(ParameterObject->GetStringField(TEXT("ExpressionGUID")))
+#endif
+		);
+
+		StaticSwitchParameters.Add(Parameter);
+#if UE5_1_BELOW
+		MaterialInstanceConstant->GetEditorOnlyData()->StaticParameters.StaticSwitchParameters.Add(Parameter);
+#endif
+
+#if UE5_2_BEYOND || UE4_27_BELOW
+		/* Unreal Engine 5.2/4.26 and beyond have a different method */
+		NewStaticParameterSet.StaticSwitchParameters.Add(Parameter);
+#endif
+	}
+
+	TArray<FStaticComponentMaskParameter> StaticSwitchMaskParameters;
+
+	for (const TSharedPtr<FJsonValue> StaticParameter_Value : StaticComponentMaskParametersObjects) {
+		TSharedPtr<FJsonObject> ParameterObject = StaticParameter_Value->AsObject();
+		TSharedPtr<FJsonObject> Local_MaterialParameterInfo = ParameterObject->GetObjectField(TEXT("ParameterInfo"));
+
+
+		/* Create Material Parameter Info */
+#if UE4_18_BELOW
+		FName MaterialParameterParameterName = FName(*Local_MaterialParameterInfo->GetStringField(TEXT("Name")));
+		FGuid MaterialParameterExpressionGUID;
+		FGuid::Parse(ParameterObject->GetStringField(TEXT("ExpressionGUID")), MaterialParameterExpressionGUID);
+#else
+		FMaterialParameterInfo MaterialParameterParameterInfo = FMaterialParameterInfo(
+			FName(Local_MaterialParameterInfo->GetStringField(TEXT("Name"))),
+			static_cast<EMaterialParameterAssociation>(StaticEnum<EMaterialParameterAssociation>()->GetValueByNameString(Local_MaterialParameterInfo->GetStringField(TEXT("Association")))),
+			Local_MaterialParameterInfo->GetIntegerField(TEXT("Index"))
+		);
+#endif
+
+		FStaticComponentMaskParameter Parameter = FStaticComponentMaskParameter(
+#if UE4_18_BELOW
+			MaterialParameterParameterName,
+#else
+			MaterialParameterParameterInfo,
+#endif
+			ParameterObject->GetBoolField(TEXT("R")),
+			ParameterObject->GetBoolField(TEXT("G")),
+			ParameterObject->GetBoolField(TEXT("B")),
+			ParameterObject->GetBoolField(TEXT("A")),
+			ParameterObject->GetBoolField(TEXT("bOverride")),
+#if UE4_18_BELOW
+			MaterialParameterExpressionGUID
+#else
+			FGuid(ParameterObject->GetStringField(TEXT("ExpressionGUID")))
+#endif
+		);
+
+		StaticSwitchMaskParameters.Add(Parameter);
+#if UE5_1_BELOW
+		MaterialInstanceConstant->GetEditorOnlyData()->StaticParameters.StaticComponentMaskParameters.Add(Parameter);
+#endif
+
+#if UE5_2_BEYOND || UE4_27_BELOW
+		NewStaticParameterSet.
+			/* EditorOnly is needed on 5.2+ */
+#if UE5_2_BEYOND
+			EditorOnly.
+#endif
+			StaticComponentMaskParameters.Add(Parameter);
+#endif
+	}
+
+#if UE5_2_BEYOND || UE4_27_BELOW
+	FMaterialUpdateContext MaterialUpdateContext(FMaterialUpdateContext::EOptions::Default & ~FMaterialUpdateContext::EOptions::RecreateRenderStates);
+
+#if UE4_18_BELOW
+	MaterialInstanceConstant->UpdateStaticPermutation(NewStaticParameterSet);
+#else
+	MaterialInstanceConstant->UpdateStaticPermutation(NewStaticParameterSet, &MaterialUpdateContext);
+#endif 
+	MaterialInstanceConstant->InitStaticPermutation();
+#endif
+
+	return OnAssetCreation(MaterialInstanceConstant);
 }
 
 void IMaterialInstanceConstantImporter::ReadStaticParameters(const TSharedPtr<FJsonObject>& StaticParameters, TArray<TSharedPtr<FJsonValue>>& StaticSwitchParameters, TArray<TSharedPtr<FJsonValue>>& StaticComponentMaskParameters) {
