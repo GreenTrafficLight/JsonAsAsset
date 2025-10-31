@@ -40,7 +40,7 @@ public class JsonAsAsset : ModuleRules
 			"RHI",
 			"Detex",
 			"NVTT",
-			"MainFrame"
-		});
+			"MainFrame",
+        });
 	}
 }
