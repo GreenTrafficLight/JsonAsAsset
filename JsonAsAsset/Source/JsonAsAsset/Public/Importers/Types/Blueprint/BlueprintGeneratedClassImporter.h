@@ -19,9 +19,11 @@ public:
 	virtual bool Import() override;
 
 private:
+	void CreateVariables(UBlueprint* BP, FString OuterName, const TArray<TSharedPtr<FJsonValue>> ChildrensObjectPath);
+
 	void HandleSimpleConstructionScript(UBlueprint* BP, USCS_Node* Node, const TArray<TSharedPtr<FJsonValue>> NodesObject, bool bIsRoot);
 
-	void ReadComponentTemplate(UActorComponent* ComponentTemplate, const TSharedPtr<FJsonObject> ComponentTemplateObjectPath);
+	void ReadComponentTemplate(UBlueprint* BP, UActorComponent* ComponentTemplate, const TSharedPtr<FJsonObject> ComponentTemplateObjectPath);
 };
 
 REGISTER_IMPORTER(IBlueprintGeneratedClassImporter, (TArray<FString>{
