@@ -222,6 +222,26 @@ inline TSharedPtr<FJsonObject> KeepPropertiesShared(const TSharedPtr<FJsonObject
 	return RawSharedPtrData;
 }
 
+inline void SavePluginConfig(UDeveloperSettings* EditorSettings) {
+	EditorSettings->SaveConfig();
+
+#if ENGINE_UE5
+	EditorSettings->TryUpdateDefaultConfigFile();
+	EditorSettings->ReloadConfig(nullptr, nullptr, UE::LCPF_PropagateToInstances);
+#else
+	EditorSettings->UpdateDefaultConfigFile();
+	EditorSettings->ReloadConfig(nullptr, nullptr, UE4::LCPF_PropagateToInstances);
+#endif
+
+	EditorSettings->LoadConfig();
+}
+
+/*
+inline void OpenPluginSettings() {
+	FModuleManager::LoadModuleChecked<ISettingsModule>("Settings").ShowViewer("Editor", "Plugins", "JsonAsAsset");
+}
+*/
+
 /* Simple handler for JsonArray */
 inline auto ProcessJsonArrayField(const TSharedPtr<FJsonObject>& ObjectField, const FString& ArrayFieldName,
 	const TFunction<void(const TSharedPtr<FJsonObject>&)>& ProcessObjectFunction) -> void
@@ -295,4 +315,24 @@ inline UClass* LoadClass(const TSharedPtr<FJsonObject>& SuperStruct) {
 	ObjectPath.Split(".", &ObjectPath, nullptr);
 
 	return LoadBlueprintClass(ObjectPath);
+}
+
+
+inline UObject* LoadStruct(const TSharedPtr<FJsonObject>& Struct) {
+	const FString ObjectName = Struct->GetStringField(TEXT("ObjectName")).Replace(TEXT("ScriptStruct'"), TEXT("")).Replace(TEXT("'"), TEXT(""));
+
+	if (ObjectName.Equals(TEXT("PointerToUberGraphFrame"))) {
+		return nullptr;
+	}
+
+	FString ObjectPath = Struct->GetStringField(TEXT("ObjectPath"));
+
+	const FString FullPath = ObjectPath + TEXT(".") + ObjectName;
+	UObject* LoadedObject = StaticLoadObject(UScriptStruct::StaticClass(), nullptr, *FullPath);
+
+	return LoadedObject;
+}
+
+inline UJsonAsAssetSettings* GetSettings() {
+	return GetMutableDefault<UJsonAsAssetSettings>();
 }

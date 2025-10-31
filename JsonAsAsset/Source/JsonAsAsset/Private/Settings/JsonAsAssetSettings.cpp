@@ -1,4 +1,6 @@
-#include "JsonAsAssetSettings.h"
+/* Copyright JsonAsAsset Contributors 2024-2025 */
+
+#include "Settings/JsonAsAssetSettings.h"
 
 #include "DetailCategoryBuilder.h"
 #include "DetailLayoutBuilder.h"
@@ -19,16 +21,38 @@
 
 #define LOCTEXT_NAMESPACE "JsonAsAsset"
 
-UJsonAsAssetSettings::UJsonAsAssetSettings() {
+UJsonAsAssetSettings::UJsonAsAssetSettings() :
+	/* Default initializers */
+	bEnableExperiments(false),
+	bEnableCloudServer(false),
+	bCustomCloudServer(false)
+{
 	CategoryName = TEXT("Plugins");
 	SectionName = TEXT("JsonAsAsset");
 }
 
-#if WITH_EDITOR
 FText UJsonAsAssetSettings::GetSectionText() const {
 	return LOCTEXT("SettingsDisplayName", "JsonAsAsset");
 }
-#endif
+
+bool UJsonAsAssetSettings::EnsureExportDirectoryIsValid(UJsonAsAssetSettings* Settings) {
+	const FString ExportDirectoryPath = Settings->ExportDirectory.Path;
+
+	if (ExportDirectoryPath.IsEmpty()) {
+		return false;
+	}
+
+	/* Invalid Export Directory */
+	if (ExportDirectoryPath.Contains("\\")) {
+		/* Fix up export directory */
+		Settings->ExportDirectory.Path = ExportDirectoryPath.Replace(TEXT("\\"), TEXT("/"));
+
+		SavePluginConfig(Settings);
+	}
+
+	return true;
+}
+
 #undef LOCTEXT_NAMESPACE
 
 #define LOCTEXT_NAMESPACE "JsonAsAssetSettingsDetails"

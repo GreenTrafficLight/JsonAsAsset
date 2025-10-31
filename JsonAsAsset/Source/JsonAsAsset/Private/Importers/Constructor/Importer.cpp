@@ -1,24 +1,22 @@
-// Copyright Epic Games, Inc. All Rights Reserved.
+/* Copyright JsonAsAsset Contributors 2024-2025 */
 
 #include "Importers/Constructor/Importer.h"
 
 #include "Settings/JsonAsAssetSettings.h"
 
-#include "CoreMinimal.h"
+/* Content Browser Modules */
 #include "ContentBrowserModule.h"
 #include "IContentBrowserSingleton.h"
-#include "AssetRegistryModule.h"
-#include "Templates/SharedPointer.h"
-#include "FileHelpers.h"
-#include "Json.h"
 
+/* Utilities */
 #include "Utilities/AssetUtilities.h"
-#include "Utilities/EngineUtilities.h"
-#include "Widgets/Notifications/SNotificationList.h"
-#include "Framework/Notifications/NotificationManager.h"
+
 #include "Misc/MessageDialog.h"
-#include "Engine/DataAsset.h"
-#include "Misc/FileHelper.h"
+#if UE4_18_BELOW
+#include "AssetRegistryModule.h"
+#else
+#include "UObject/SavePackage.h"
+#endif
 
 /* Slate Icons */
 #include "Styling/SlateIconFinder.h"
@@ -29,8 +27,15 @@
 #include "Importers/Constructor/TemplatedImporter.h"
 
 /* ~~~~~~~~~~~~~ Templated Engine Classes ~~~~~~~~~~~~~ */
+#include "Materials/MaterialParameterCollection.h"
+#include "Engine/SubsurfaceProfile.h"
+#include "Curves/CurveLinearColor.h"
 #include "Logging/MessageLog.h"
 #include "Modules/LogCategory.h"
+#include "Sound/SoundNode.h"
+#if UE4_18_BELOW
+#include "Sound/SoundWave.h"
+#endif
 /* ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ */
 
 #define LOCTEXT_NAMESPACE "IImporter"
@@ -65,6 +70,142 @@ IImporter::IImporter(const FString& AssetName, const FString& FilePath,
 		}
 	}
 }
+
+/*
+ * Define supported asset class names here
+ *
+ * An empty string "" is a separator line
+ * A string starting with "# ..." is a category
+ */
+
+#if UE4_18_BELOW
+TMap<FString, TArray<FString>>& IImporter::GetImporterTemplatedTypes()
+{
+	static TMap<FString, TArray<FString>> ImporterTemplatedTypes;
+
+	// Initialize once (the first time it's called)
+	if (ImporterTemplatedTypes.Num() == 0)
+	{
+		ImporterTemplatedTypes.Add(TEXT("Curve Assets"), { 
+			TEXT("CurveFloat") 
+		});
+
+		ImporterTemplatedTypes.Add(TEXT("Data Assets"), { 
+			TEXT("SlateBrushAsset"), 
+			TEXT("SlateWidgetStyleAsset") 
+		});
+
+		ImporterTemplatedTypes.Add(TEXT("Landscape Assets"), { 
+			TEXT("LandscapeGrassType"), 
+			TEXT("FoliageType_InstancedStaticMesh"), 
+			TEXT("FoliageType_Actor") 
+		});
+
+		ImporterTemplatedTypes.Add(TEXT("Material Assets"), { 
+			TEXT("MaterialParameterCollection"), 
+			TEXT("SubsurfaceProfile") 
+		});
+
+		ImporterTemplatedTypes.Add(TEXT("Skeletal Assets"), { 
+			TEXT("SkeletalMeshLODSettings") 
+		});
+
+		ImporterTemplatedTypes.Add(TEXT("Physics Assets"), { 
+			TEXT("PhysicalMaterial") 
+		});
+		ImporterTemplatedTypes.Add(TEXT("Sound Assets"), { 
+			TEXT("ReverbEffect"), 
+			TEXT("SoundAttenuation"), 
+			TEXT("SoundConcurrency"),
+			TEXT("SoundClass"), 
+			TEXT("SoundMix"), 
+			TEXT("SoundModulationPatch"), 
+			TEXT("SubmixEffectDynamicsProcessorPreset") 
+		});
+
+		ImporterTemplatedTypes.Add(TEXT("Texture Assets"), { 
+			TEXT("TextureRenderTarget2D"), 
+			TEXT("RuntimeVirtualTexture") 
+		});
+
+		ImporterTemplatedTypes.Add(TEXT("Sequencer Assets"), { 
+			TEXT("CameraAnim") 
+		});
+	}
+
+	return ImporterTemplatedTypes;
+}
+#else
+TMap<FString, TArray<FString>> ImporterTemplatedTypes = {
+	{
+		TEXT("Curve Assets"),
+		{
+			TEXT("CurveFloat"),
+		}
+	},
+	{
+		TEXT("Data Assets"),
+		{
+			TEXT("SlateBrushAsset"),
+			TEXT("SlateWidgetStyleAsset"),
+			TEXT("AnimBoneCompressionSettings"),
+			TEXT("AnimCurveCompressionSettings"),
+		}
+	},
+	{
+		TEXT("Landscape Assets"),
+		{
+			TEXT("LandscapeGrassType"),
+			TEXT("FoliageType_InstancedStaticMesh"),
+			TEXT("FoliageType_Actor"),
+		}
+	},
+	{
+		TEXT("Material Assets"),
+		{
+			TEXT("MaterialParameterCollection"),
+			TEXT("SubsurfaceProfile"),
+		}
+	},
+	{
+		TEXT("Skeletal Assets"),
+		{
+			TEXT("SkeletalMeshLODSettings"),
+		}
+	},
+	{
+		TEXT("Physics Assets"),
+		{
+			TEXT("PhysicalMaterial"),
+		}
+	},
+	{
+		TEXT("Sound Assets"),
+		{
+			TEXT("ReverbEffect"),
+			TEXT("SoundAttenuation"),
+			TEXT("SoundConcurrency"),
+			TEXT("SoundClass"),
+			TEXT("SoundMix"),
+			TEXT("SoundModulationPatch"),
+			TEXT("SubmixEffectDynamicsProcessorPreset"),
+		}
+	},
+	{
+		TEXT("Texture Assets"),
+		{
+			TEXT("TextureRenderTarget2D"),
+			TEXT("RuntimeVirtualTexture"),
+		}
+	},
+	{
+		TEXT("Sequencer Assets"),
+		{
+			TEXT("CameraAnim"),
+		}
+	}
+};
+#endif
 
 bool IImporter::ReadExportsAndImport(TArray<TSharedPtr<FJsonValue>> Exports, FString File, const bool bHideNotifications) {
 	for (const TSharedPtr<FJsonValue>& ExportPtr : Exports) {
@@ -173,16 +314,21 @@ bool IImporter::ReadExportsAndImport(TArray<TSharedPtr<FJsonValue>> Exports, FSt
 
 bool IImporter::HandleAssetCreation(UObject* Asset) const {
 	FAssetRegistryModule::AssetCreated(Asset);
+
 	if (!Asset->MarkPackageDirty()) return false;
+
 	Package->SetDirtyFlag(true);
 	Asset->PostEditChange();
 	Asset->AddToRoot();
+
 	Package->FullyLoad();
 
-	// Browse to newly added Asset
+	/* Browse to newly added Asset in the Content Browser */
 	const TArray<FAssetData>& Assets = { Asset };
 	const FContentBrowserModule& ContentBrowserModule = FModuleManager::Get().LoadModuleChecked<FContentBrowserModule>("ContentBrowser");
 	ContentBrowserModule.Get().SyncBrowserToAssets(Assets);
+
+	Asset->PostLoad();
 
 	return true;
 }
@@ -244,15 +390,19 @@ TObjectPtr<T> IImporter::DownloadWrapper(TObjectPtr<T> InObject, FString Type, c
 	return InObject;
 }
 
-/*template void IImporter::LoadObject<UMaterialInterface>(const TSharedPtr<FJsonObject>*, TObjectPtr<UMaterialInterface>&);
+template void IImporter::LoadObject<UMaterialInterface>(const TSharedPtr<FJsonObject>*, TObjectPtr<UMaterialInterface>&);
 template void IImporter::LoadObject<USubsurfaceProfile>(const TSharedPtr<FJsonObject>*, TObjectPtr<USubsurfaceProfile>&);
 template void IImporter::LoadObject<UTexture>(const TSharedPtr<FJsonObject>*, TObjectPtr<UTexture>&);
 template void IImporter::LoadObject<UMaterialParameterCollection>(const TSharedPtr<FJsonObject>*, TObjectPtr<UMaterialParameterCollection>&);
+#if !UE4_18_BELOW
 template void IImporter::LoadObject<UAnimSequence>(const TSharedPtr<FJsonObject>*, TObjectPtr<UAnimSequence>&);
+#endif
 template void IImporter::LoadObject<USoundWave>(const TSharedPtr<FJsonObject>*, TObjectPtr<USoundWave>&);
 template void IImporter::LoadObject<UObject>(const TSharedPtr<FJsonObject>*, TObjectPtr<UObject>&);
+#if !UE4_18_BELOW
 template void IImporter::LoadObject<UMaterialFunctionInterface>(const TSharedPtr<FJsonObject>*, TObjectPtr<UMaterialFunctionInterface>&);
-template void IImporter::LoadObject<USoundNode>(const TSharedPtr<FJsonObject>*, TObjectPtr<USoundNode>&);*/
+#endif
+template void IImporter::LoadObject<USoundNode>(const TSharedPtr<FJsonObject>*, TObjectPtr<USoundNode>&);
 
 template <typename T>
 void IImporter::LoadObject(const TSharedPtr<FJsonObject>* PackageIndex, TObjectPtr<T>& Object) {

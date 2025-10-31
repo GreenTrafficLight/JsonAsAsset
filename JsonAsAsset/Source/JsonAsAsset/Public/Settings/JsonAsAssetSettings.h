@@ -108,6 +108,142 @@ public:
 	virtual void CustomizeDetails(IDetailLayoutBuilder& DetailBuilder) override;
 };
 
+/* Settings for materials */
+USTRUCT()
+struct FJMaterialImportSettings
+{
+	GENERATED_BODY()
+public:
+	/* Constructor to initialize default values */
+	FJMaterialImportSettings()
+		: bSkipResultNodeConnection(false)
+	{}
+
+	/**
+	 * Prevents a known error during Material asset import/download:
+	 * "Material expression called Compiler->TextureParameter() without implementing UMaterialExpression::GetReferencedTexture properly."
+	 *
+	 * To avoid this issue, this option skips connecting the inputs to the material's primary result node, potentially fixing the error.
+	 *
+	 * Usage:
+	 *  - If enabled, import the material, save your project, restart the editor, and then re-import the material.
+	 *  - Alternatively, manually connect the inputs to the main result node.
+	 */
+	UPROPERTY(EditAnywhere, Config, Category = "Material Import Settings")
+		bool bSkipResultNodeConnection;
+};
+
+/* Settings for animation blueprints */
+USTRUCT()
+struct FJAnimationBlueprintImportSettings
+{
+	GENERATED_BODY()
+public:
+	/* Constructor to initialize default values */
+	FJAnimationBlueprintImportSettings()
+		: bShowAllNodeKeysAsComment(false)
+	{}
+
+	UPROPERTY(EditAnywhere, Config, AdvancedDisplay, Category = "Animation Blueprint Settings")
+		bool bShowAllNodeKeysAsComment;
+};
+
+/* Settings for textures */
+USTRUCT()
+struct FJTextureImportSettings
+{
+	GENERATED_BODY()
+public:
+	/* Constructor to initialize default values */
+	FJTextureImportSettings()
+		: bDownloadExistingTextures(false)
+	{}
+
+	/**
+	 * Enables re-downloading of textures even if they already exist in the Unreal Engine project.
+	 *
+	 * Use Case:
+	 * This option is useful when you need to re-import textures that have been updated in a newer version of your Cloud build.
+	 */
+	UPROPERTY(EditAnywhere, Config, AdvancedDisplay, Category = "Texture Import Settings")
+		bool bDownloadExistingTextures;
+};
+
+/* Settings for sounds */
+USTRUCT()
+struct FJSoundImportSettings
+{
+	GENERATED_BODY()
+public:
+	UPROPERTY(EditAnywhere, Config, Category = "Sound Import Settings", meta = (DisplayName = "Audio File Name Extension"))
+		FString AudioFileExtension = "ogg";
+};
+
+/* Settings for pose assets */
+USTRUCT()
+struct FJPoseAssetImportSettings
+{
+	GENERATED_BODY()
+};
+
+USTRUCT()
+struct FJPathRedirector
+{
+	GENERATED_BODY()
+public:
+	UPROPERTY(EditAnywhere, Config, Category = "Path Redirector")
+		FString Source;
+
+	UPROPERTY(EditAnywhere, Config, Category = "Path Redirector")
+		FString Target;
+};
+
+USTRUCT()
+struct FAssetSettings
+{
+	GENERATED_BODY()
+public:
+	/* Constructor to initialize default values */
+	FAssetSettings()
+		: bSavePackagesOnImport(false)
+	{
+		MaterialImportSettings = FJMaterialImportSettings();
+		SoundImportSettings = FJSoundImportSettings();
+		TextureImportSettings = FJTextureImportSettings();
+		AnimationBlueprintImportSettings = FJAnimationBlueprintImportSettings();
+		PoseAssetImportSettings = FJPoseAssetImportSettings();
+	}
+
+	UPROPERTY(EditAnywhere, Config, Category = AssetSettings)
+		FJTextureImportSettings TextureImportSettings;
+
+	UPROPERTY(EditAnywhere, Config, Category = AssetSettings)
+		FJMaterialImportSettings MaterialImportSettings;
+
+	UPROPERTY(EditAnywhere, Config, Category = AssetSettings)
+		FJSoundImportSettings SoundImportSettings;
+
+	/* UPROPERTY(EditAnywhere, Config, Category = AssetSettings) */
+	FJPoseAssetImportSettings PoseAssetImportSettings;
+
+	UPROPERTY(EditAnywhere, Config, Category = AssetSettings)
+		FJAnimationBlueprintImportSettings AnimationBlueprintImportSettings;
+
+	/* Game's Project Name (Set by Cloud) */
+	UPROPERTY(EditAnywhere, Config, Category = AssetSettings)
+		FString GameName;
+
+	/* If imported assets are from UE5. (Set by Cloud) */
+	UPROPERTY(Config)
+		bool bUE5Target;
+
+	UPROPERTY(EditAnywhere, Config, Category = AssetSettings, meta = (DisplayName = "Save Assets On Import"))
+		bool bSavePackagesOnImport;
+
+	UPROPERTY(EditAnywhere, Config, Category = AssetSettings)
+		TArray<FJPathRedirector> PathRedirectors;
+};
+
 // A editor plugin to allow JSON files from FModel to a asset in the Content Browser
 UCLASS(Config = EditorPerProjectUserSettings, DefaultConfig)
 class UJsonAsAssetSettings : public UDeveloperSettings {
@@ -121,14 +257,56 @@ public:
 #endif
 
 	/**
-	* Export directory for FModel
-	*	  (Output/Exports)
-	*
-	* NOTE: Please use the file selector, do not manually paste it
-	*		or replace "\" with "/"
-	*/
-	UPROPERTY(EditAnywhere, Config, Category = "Behavior")
-		FDirectoryPath ExportDirectory;
+	 * Specifies the directory path for exported assets.
+	 * (e.g. Output/Exports)
+	 */
+	UPROPERTY(EditAnywhere, Config, Category = Configuration)
+	FDirectoryPath ExportDirectory;
+
+	/*UPROPERTY(EditAnywhere, Config, Category = Configuration)
+		FAssetSettings AssetSettings;*/
+
+	/* Enables experimental/developing features of JsonAsAsset. Features may not work as intended. */
+	UPROPERTY(EditAnywhere, Config, Category = Configuration, AdvancedDisplay)
+	bool bEnableExperiments;
+
+	/**
+	 * Retrieves assets from an API and imports references directly into your project.
+	 *
+	 * For further instructions, please refer to the README.md file found on GitHub.
+	 */
+	UPROPERTY(EditAnywhere, Config, Category = Cloud, DisplayName = "Enable Cloud")
+	bool bEnableCloudServer;
+
+
+	/**
+	 * DO NOT MODIFY UNLESS YOU KNOW WHAT YOU'RE DOING.
+	 */
+	UPROPERTY(EditAnywhere, Config, Category = Cloud, DisplayName = "Use Custom Cloud URL", meta = (EditCondition = "bCustomCloudServer"), AdvancedDisplay)
+	FString CustomCloudURL = "http://localhost:1500";
+
+	UPROPERTY(EditAnywhere, Category = Cloud, meta = (PinHiddenByDefault, InlineEditConditionToggle))
+	uint8 bCustomCloudServer : 1;
+
+	static bool EnsureExportDirectoryIsValid(UJsonAsAssetSettings* Settings);
+
+	static bool IsSetup(UJsonAsAssetSettings* Settings, TArray<FString>& Reasons) {
+		const bool IsExportDirectoryValid = EnsureExportDirectoryIsValid(Settings);
+
+		if (!IsExportDirectoryValid) {
+			Reasons.Add("Export Directory is missing");
+		}
+
+		return IsExportDirectoryValid;
+	}
+
+	static bool IsSetup(UJsonAsAssetSettings* Settings) {
+		if (Settings == nullptr) return false;
+
+		TArray<FString> Params;
+		return IsSetup(Settings, Params);
+	}
+
 
 	/**
 	* When importing/downloading any asset type using JsonAsAsset,

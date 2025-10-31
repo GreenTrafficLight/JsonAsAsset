@@ -9,6 +9,40 @@
 #include "CoreMinimal.h"
 #include "Utilities/Serializers/SerializerContainer.h"
 
+#if !UE4_18_BELOW
+/* AssetType/Category ~ Defined in CPP */
+extern TMap<FString, TArray<FString>> ImporterTemplatedTypes;
+#endif
+
+#if UE4_18_BELOW
+static const TArray<FString> BlacklistedCloudTypes
+#else
+inline TArray<FString> BlacklistedCloudTypes 
+#endif 
+= {
+	"AnimSequence",
+	"AnimMontage",
+	"AnimBlueprintGeneratedClass"
+};
+
+#if UE4_18_BELOW
+static const TArray<FString> ExtraCloudTypes
+#else
+inline TArray<FString> ExtraCloudTypes
+#endif 
+= {
+	"TextureLightProfile"
+};
+
+#if UE4_18_BELOW
+static const TArray<FString> ExperimentalAssetTypes
+#else
+inline const TArray<FString> ExperimentalAssetTypes
+#endif 
+= {
+	"AnimBlueprintGeneratedClass"
+};
+
 FORCEINLINE uint32 GetTypeHash(const TArray<FString>& Array) {
 	uint32 Hash = 0;
 
@@ -112,33 +146,71 @@ public:
 
 public:
 	/* Accepted Types ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ */
+	static bool IsAssetTypeImportableUsingCloud(const FString& ImporterType) {
+		if (ExtraCloudTypes.Contains(ImporterType)) {
+			return true;
+		}
+
+		return false;
+	}
+
 	static bool CanImportWithCloud(const FString& ImporterType) {
-		/*if (BlacklistedCloudTypes.Contains(ImporterType)) {
+		if (BlacklistedCloudTypes.Contains(ImporterType)) {
 			return false;
-		}*/
+		}
 
 		return true;
 	}
 
 	static bool IsAssetTypeExperimental(const FString& ImporterType) {
-		/*if (ExperimentalAssetTypes.Contains(ImporterType)) {
+		if (ExperimentalAssetTypes.Contains(ImporterType)) {
 			return false;
-		}*/
+		}
 
 		return true;
 	}
 
-	static  bool CanImport(const FString& ImporterType, const bool IsCloud = false, const UClass* Class = nullptr) {
-		for (auto& Pair : GetFactoryRegistry()) {
-			/*if (!Settings->bEnableExperiments) {
-				if (ExperimentalAssetTypes.Contains(AssetType)) return nullptr;
-			}*/
+	static bool CanImport(const FString& ImporterType, const bool IsCloud = false, const UClass* Class = nullptr) {
+#if UE4_18_BELOW
+		TMap<FString, TArray<FString>>& ImporterTemplatedTypes = GetImporterTemplatedTypes();
+#endif
 
-			if (Pair.Key.Contains(ImporterType)) {
+		/* Blacklists for Cloud importing */
+		if (IsCloud) {
+			if (!CanImportWithCloud(ImporterType)) {
+				return false;
+			}
+		}
+
+		if (FindFactoryForAssetType(ImporterType)) {
+			return true;
+		}
+		
+		for (const TPair<FString, TArray<FString>>& Pair : ImporterTemplatedTypes) {
+			if (Pair.Value.Contains(ImporterType)) {
 				return true;
 			}
 		}
-		return false;
+
+		if (CanImportWithCloud(ImporterType))
+
+			if (!Class) {
+#if UE5_6_BEYOND
+				Class = FindFirstObject<UClass>(*ImporterType);
+#else
+				Class = FindObject<UClass>(ANY_PACKAGE, *ImporterType);
+#endif
+			}
+
+		if (Class == nullptr) return false;
+
+		if (ImporterType == "MaterialInterface") return true;
+
+		if (IsAssetTypeImportableUsingCloud(ImporterType)) {
+			return true;
+		}
+
+		return Class->IsChildOf(UDataAsset::StaticClass());
 	}
 
     static bool CanImportAny(TArray<FString>& Types) {
@@ -148,30 +220,10 @@ public:
         return false;
     }
 
+#if UE4_18_BELOW
 private:
-	TArray<FString> AcceptedTypes = {
-		"CurveTable",
-		"CurveFloat",
-		"CurveVector",
-		"CurveLinearColor",
-		"CurveLinearColorAtlas",
-		"Skeleton",
-		"AnimSequence",
-		"AnimMontage",
-		"Material",
-		"MaterialFunction",
-		"MaterialInstanceConstant",
-		"MaterialParameterCollection",
-		"DataTable",
-		"LandscapeGrassType",
-		"ReverbEffect",
-		"SoundAttenuation",
-		"SoundConcurrency",
-		"SubsurfaceProfile",
-		"PhysicalMaterial",
-		"BlueprintGeneratedClass",
-		"WidgetBlueprintGeneratedClass"
-	};
+	static TMap<FString, TArray<FString>>& GetImporterTemplatedTypes();
+#endif
 
 public:
 	/* Loads a single <T> object ptr */
@@ -190,8 +242,6 @@ public:
 
 		return GUID;
 	}
-
-	TArray<FString> GetAcceptedTypes() { return AcceptedTypes; }
 
 public:
 	/* Sends off to the ReadExportsAndImport function once read */
