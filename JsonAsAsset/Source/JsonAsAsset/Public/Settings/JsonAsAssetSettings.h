@@ -199,12 +199,12 @@ public:
 };
 
 USTRUCT()
-struct FAssetSettings
+struct FJAssetSettings
 {
 	GENERATED_BODY()
 public:
 	/* Constructor to initialize default values */
-	FAssetSettings()
+	FJAssetSettings()
 		: bSavePackagesOnImport(false)
 	{
 		MaterialImportSettings = FJMaterialImportSettings();
@@ -215,34 +215,49 @@ public:
 	}
 
 	UPROPERTY(EditAnywhere, Config, Category = AssetSettings)
-		FJTextureImportSettings TextureImportSettings;
+	FJTextureImportSettings TextureImportSettings;
 
 	UPROPERTY(EditAnywhere, Config, Category = AssetSettings)
-		FJMaterialImportSettings MaterialImportSettings;
+	FJMaterialImportSettings MaterialImportSettings;
 
 	UPROPERTY(EditAnywhere, Config, Category = AssetSettings)
-		FJSoundImportSettings SoundImportSettings;
+	FJSoundImportSettings SoundImportSettings;
 
 	/* UPROPERTY(EditAnywhere, Config, Category = AssetSettings) */
 	FJPoseAssetImportSettings PoseAssetImportSettings;
 
 	UPROPERTY(EditAnywhere, Config, Category = AssetSettings)
-		FJAnimationBlueprintImportSettings AnimationBlueprintImportSettings;
+	FJAnimationBlueprintImportSettings AnimationBlueprintImportSettings;
 
 	/* Game's Project Name (Set by Cloud) */
 	UPROPERTY(EditAnywhere, Config, Category = AssetSettings)
-		FString GameName;
+	FString GameName;
 
 	/* If imported assets are from UE5. (Set by Cloud) */
 	UPROPERTY(Config)
-		bool bUE5Target;
+	bool bUE5Target;
 
 	UPROPERTY(EditAnywhere, Config, Category = AssetSettings, meta = (DisplayName = "Save Assets On Import"))
-		bool bSavePackagesOnImport;
+	bool bSavePackagesOnImport;
 
 	UPROPERTY(EditAnywhere, Config, Category = AssetSettings)
-		TArray<FJPathRedirector> PathRedirectors;
+	TArray<FJPathRedirector> PathRedirectors;
 };
+
+USTRUCT()
+struct FJVersioningSettings
+{
+	GENERATED_BODY()
+public:
+	/* Disable checking for newer updates of JsonAsAsset. */
+	UPROPERTY(EditAnywhere, Config, Category = VersioningSettings)
+		bool bDisable = false;
+
+	/* Enable update reminders for newer updates of JsonAsAsset. */
+	UPROPERTY(EditAnywhere, Config, Category = VersioningSettings)
+		bool bEnableReminders = true;
+};
+
 
 // A editor plugin to allow JSON files from FModel to a asset in the Content Browser
 UCLASS(Config = EditorPerProjectUserSettings, DefaultConfig)
@@ -263,8 +278,11 @@ public:
 	UPROPERTY(EditAnywhere, Config, Category = Configuration)
 	FDirectoryPath ExportDirectory;
 
-	/*UPROPERTY(EditAnywhere, Config, Category = Configuration)
-		FAssetSettings AssetSettings;*/
+	UPROPERTY(EditAnywhere, Config, Category = Configuration)
+	FJVersioningSettings Versioning;
+
+	UPROPERTY(EditAnywhere, Config, Category = Configuration)
+	FJAssetSettings AssetSettings;
 
 	/* Enables experimental/developing features of JsonAsAsset. Features may not work as intended. */
 	UPROPERTY(EditAnywhere, Config, Category = Configuration, AdvancedDisplay)
@@ -272,21 +290,9 @@ public:
 
 	/**
 	 * Retrieves assets from an API and imports references directly into your project.
-	 *
-	 * For further instructions, please refer to the README.md file found on GitHub.
 	 */
 	UPROPERTY(EditAnywhere, Config, Category = Cloud, DisplayName = "Enable Cloud")
 	bool bEnableCloudServer;
-
-
-	/**
-	 * DO NOT MODIFY UNLESS YOU KNOW WHAT YOU'RE DOING.
-	 */
-	UPROPERTY(EditAnywhere, Config, Category = Cloud, DisplayName = "Use Custom Cloud URL", meta = (EditCondition = "bCustomCloudServer"), AdvancedDisplay)
-	FString CustomCloudURL = "http://localhost:1500";
-
-	UPROPERTY(EditAnywhere, Category = Cloud, meta = (PinHiddenByDefault, InlineEditConditionToggle))
-	uint8 bCustomCloudServer : 1;
 
 	static bool EnsureExportDirectoryIsValid(UJsonAsAssetSettings* Settings);
 
@@ -306,6 +312,17 @@ public:
 		TArray<FString> Params;
 		return IsSetup(Settings, Params);
 	}
+
+	static void ReadAppData();
+
+	/**
+	 * DO NOT MODIFY UNLESS YOU KNOW WHAT YOU'RE DOING.
+	 */
+	UPROPERTY(EditAnywhere, Config, Category = Cloud, DisplayName = "Use Custom Cloud URL", meta = (EditCondition = "bCustomCloudServer"), AdvancedDisplay)
+	FString CustomCloudURL = "http://localhost:1500";
+
+	UPROPERTY(EditAnywhere, Category = Cloud, meta = (PinHiddenByDefault, InlineEditConditionToggle))
+	uint8 bCustomCloudServer : 1;
 
 
 	/**

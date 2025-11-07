@@ -31,41 +31,32 @@
 
 // Shout-out to UEAssetToolkit
 bool IWidgetBlueprintGeneratedClassImporter::Import() {
-	try {
-		const TSharedPtr<FJsonObject> SuperStruct = JsonObject->GetObjectField(TEXT("SuperStruct"));
-		UClass* ParentClass = LoadClass(SuperStruct);
+	const TSharedPtr<FJsonObject> SuperStruct = JsonObject->GetObjectField(TEXT("SuperStruct"));
+	UClass* ParentClass = LoadClass(SuperStruct);
 		
-		UBlueprint* Blueprint = nullptr;
-		Blueprint = FindObject<UBlueprint>(Package, *AssetName);
-		if (!Blueprint) {
-			Blueprint = FKismetEditorUtilities::CreateBlueprint(ParentClass, Package, FName(*AssetName), BPTYPE_Normal, UWidgetBlueprint::StaticClass(), UBlueprintGeneratedClass::StaticClass());
-			UWidgetBlueprint* WidgetBP = Cast<UWidgetBlueprint>(Blueprint);
+	UBlueprint* Blueprint = nullptr;
+	Blueprint = FindObject<UBlueprint>(Package, *AssetName);
+	if (!Blueprint) {
+		Blueprint = FKismetEditorUtilities::CreateBlueprint(ParentClass, Package, FName(*AssetName), BPTYPE_Normal, UWidgetBlueprint::StaticClass(), UBlueprintGeneratedClass::StaticClass());
+		UWidgetBlueprint* WidgetBP = Cast<UWidgetBlueprint>(Blueprint);
 
-			const TSharedPtr<FJsonObject> WidgetTree = TSharedPtr<FJsonObject>(GetExportByObjectPath(JsonObject->GetObjectField(TEXT("Properties"))->GetObjectField(TEXT("WidgetTree")))->AsObject());
+		const TSharedPtr<FJsonObject> WidgetTree = TSharedPtr<FJsonObject>(GetExportByObjectPath(JsonObject->GetObjectField(TEXT("Properties"))->GetObjectField(TEXT("WidgetTree")))->AsObject());
 
-			// Get the Root Widget from the Widget Tree Json Object
-			const TSharedPtr<FJsonObject> RootWidgetJsonObject = TSharedPtr<FJsonObject>(GetExportByObjectPath(WidgetTree->GetObjectField(TEXT("Properties"))->GetObjectField(TEXT("RootWidget")))->AsObject());
-			// Create the root Widget and put it into the Widget Blueprint
-			UCanvasPanel* RootWidget = WidgetBP->WidgetTree->ConstructWidget<UCanvasPanel>(UCanvasPanel::StaticClass(), FName(*RootWidgetJsonObject->GetStringField(TEXT("Name"))));
-			WidgetBP->WidgetTree->RootWidget = RootWidget;
+		// Get the Root Widget from the Widget Tree Json Object
+		const TSharedPtr<FJsonObject> RootWidgetJsonObject = TSharedPtr<FJsonObject>(GetExportByObjectPath(WidgetTree->GetObjectField(TEXT("Properties"))->GetObjectField(TEXT("RootWidget")))->AsObject());
+		// Create the root Widget and put it into the Widget Blueprint
+		UCanvasPanel* RootWidget = WidgetBP->WidgetTree->ConstructWidget<UCanvasPanel>(UCanvasPanel::StaticClass(), FName(*RootWidgetJsonObject->GetStringField(TEXT("Name"))));
+		WidgetBP->WidgetTree->RootWidget = RootWidget;
 
-			// Handle the slots of a canvas panel
-			HandlePanelSlots(WidgetBP, RootWidgetJsonObject, RootWidget);
+		// Handle the slots of a canvas panel
+		HandlePanelSlots(WidgetBP, RootWidgetJsonObject, RootWidget);
 
-			HandleAssetCreation(WidgetBP);
+		HandleAssetCreation(WidgetBP);
 
-			WidgetBP->MarkPackageDirty();
+		WidgetBP->MarkPackageDirty();
 
-			SavePackage();
-		}
-
-		return true;
-
-	} catch (const char* Exception) {
-		UE_LOG(LogJson, Error, TEXT("%s"), *FString(Exception));
-		return false;
+		SavePackage();
 	}
-
 
 	return true;
 }

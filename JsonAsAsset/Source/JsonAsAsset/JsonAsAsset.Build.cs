@@ -19,6 +19,7 @@ public class JsonAsAsset : ModuleRules
 			"HTTP",
             "DesktopPlatform",
             "GameplayTags",
+            "ApplicationCore",
         });
 		
 		PrivateDependencyModuleNames.AddRange(new string[]
@@ -26,7 +27,10 @@ public class JsonAsAsset : ModuleRules
 			"Projects",
 			"InputCore",
 			"UnrealEd",
-			"CoreUObject",
+            "Kismet",
+            "KismetCompiler",
+            "BlueprintGraph",
+            "CoreUObject",
 			"Engine",
             "RawMesh",
             "Slate",

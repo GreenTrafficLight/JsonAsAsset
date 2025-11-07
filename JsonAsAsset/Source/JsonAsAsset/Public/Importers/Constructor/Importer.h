@@ -245,8 +245,7 @@ public:
 
 public:
 	/* Sends off to the ReadExportsAndImport function once read */
-	void ImportReference(const FString& File);
-	bool HandleReference(const FString& GamePath);
+	static void ImportReference(const FString& File);
 
 	/*
 	 * Searches for importable asset types and imports them.

@@ -149,10 +149,103 @@ bool UStaticMeshImporter::ImportStaticMesh(UStaticMesh*& OutStaticMesh, TArray<u
 	return false;
 }
 
+bool UStaticMeshImporter::ImportSkeletalMesh(USkeletalMesh*& OutSkeletalMesh, TArray<uint8>& Data, const TSharedPtr<FJsonObject>& Properties) const {
+	USkeletalMesh* SkeletalMesh = nullptr;
+	SkeletalMesh = FindObject<USkeletalMesh>(Package, *AssetName);
+
+	if (!SkeletalMesh) {
+		SkeletalMesh = NewObject<USkeletalMesh>(OutermostPkg, *AssetName, RF_Public | RF_Standalone);
+
+		const TSharedPtr<FJsonObject> RenderDataObject = Properties->GetObjectField("RenderData");
+		const TArray<TSharedPtr<FJsonValue>> LODsObject = RenderDataObject->GetArrayField(TEXT("LODs"));
+		int32 NumLODs = LODsObject.Num();
+
+		FMemoryReader Reader(Data, false);
+
+		// TO DO : Handle LODs by putting a loop here
+		for (int32 lodIndex = 0; lodIndex < 1; lodIndex++) {
+			const TSharedPtr<FJsonObject> LODObject = LODsObject[lodIndex]->AsObject();
+
+			uint32 IndexCount = 0;
+			Reader << IndexCount;
+			uint32 VertexCount = 0;
+			Reader << VertexCount;
+
+			TArray<uint16> RawIndices;
+			RawIndices.SetNum(IndexCount);
+			Reader.Serialize(RawIndices.GetData(), IndexCount * sizeof(uint16));
+
+			TArray<int32> Indices;
+			Indices.Reserve(RawIndices.Num());
+
+			for (uint16 Idx : RawIndices)
+			{
+				Indices.Add(static_cast<int32>(Idx));
+			}
+
+			const int32 Stride = 15;
+			TArray<float> RawVertexData;
+			RawVertexData.SetNum(VertexCount * Stride);
+			Reader.Serialize(RawVertexData.GetData(), RawVertexData.Num() * sizeof(float));
+
+			TArray<FVector> Positions;
+			TArray<FVector4> Normals;
+			TArray<FVector4> Tangents;
+			TArray<FVector2D> UVs;
+			TArray<uint32> BoneIndices;
+			TArray<float> BoneWeights;
+			Positions.SetNum(VertexCount);
+			Normals.SetNum(VertexCount);
+			Tangents.SetNum(VertexCount);
+			UVs.SetNum(VertexCount);
+			BoneIndices.SetNum(VertexCount);
+			BoneWeights.SetNum(VertexCount);
+
+			for (uint32 i = 0; i < VertexCount; ++i)
+			{
+				int32 Offset = i * Stride;
+				Positions[i] = FVector(
+					RawVertexData[Offset + 0],
+					RawVertexData[Offset + 1],
+					RawVertexData[Offset + 2]);
+
+				Normals[i] = FVector4(
+					RawVertexData[Offset + 3],
+					RawVertexData[Offset + 4],
+					RawVertexData[Offset + 5],
+					RawVertexData[Offset + 6]);
+
+				Tangents[i] = FVector4(
+					RawVertexData[Offset + 7],
+					RawVertexData[Offset + 8],
+					RawVertexData[Offset + 9],
+					RawVertexData[Offset + 10]);
+
+				UVs[i] = FVector2D(
+					RawVertexData[Offset + 11],
+					RawVertexData[Offset + 12]);
+
+				BoneIndices[i] = static_cast<uint32>(RawVertexData[Offset + 13]);
+				BoneWeights[i] = RawVertexData[Offset + 14];
+			}
+
+			const TArray<TSharedPtr<FJsonValue>> SectionsObject = LODObject->GetArrayField(TEXT("Sections"));
+			int32 NumSections = SectionsObject.Num();
+		}
+	}
+
+	return false;
+}
+
 bool UStaticMeshImporter::ImportStaticMesh_Data(UStaticMesh* InStaticMesh, const TSharedPtr<FJsonObject>& Properties) const  {
 	if (InStaticMesh == nullptr) return false;
 
-	// READ LODS
+	GetObjectSerializer()->DeserializeObjectProperties(RemovePropertiesShared(Properties->GetObjectField("Properties"),
+		{
+			"BodySetup",
+			"NavCollision",
+			"RenderData"
+	}), InStaticMesh);
 
 	return true;
 }

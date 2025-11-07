@@ -407,12 +407,46 @@ template void IImporter::LoadObject<USoundNode>(const TSharedPtr<FJsonObject>*, 
 template <typename T>
 void IImporter::LoadObject(const TSharedPtr<FJsonObject>* PackageIndex, TObjectPtr<T>& Object) {
 	FString ObjectType, ObjectName, ObjectPath, Outer;
-	ParsePackageIndex(PackageIndex, ObjectType, ObjectName, ObjectPath, Outer);
+	PackageIndex->Get()->GetStringField(TEXT("ObjectName")).Split("'", &ObjectType, &ObjectName);
 
-#pragma warning( push )
-#pragma warning( disable : 4101) // Hide LoadObject Fail
+	ObjectPath = PackageIndex->Get()->GetStringField(TEXT("ObjectPath"));
+	ObjectPath.Split(".", &ObjectPath, nullptr);
+
+	//RedirectPath(ObjectPath);
+
+	const UJsonAsAssetSettings* Settings = GetDefault<UJsonAsAssetSettings>();
+
+	ObjectPath = ObjectPath.Replace(TEXT("Nimbus/Content"), TEXT("/Game"));
+	/*if (!Settings->AssetSettings.GameName.IsEmpty()) {
+		ObjectPath = ObjectPath.Replace(*(Settings->AssetSettings.GameName + "/Content"), TEXT("/Game"));
+	}*/
+
+	ObjectPath = ObjectPath.Replace(TEXT("Engine/Content"), TEXT("/Engine"));
+	ObjectName = ObjectName.Replace(TEXT("'"), TEXT(""));
+
+	if (ObjectName.Contains(".")) {
+		ObjectName.Split(".", nullptr, &ObjectName);
+	}
+
+	if (ObjectName.Contains(".")) {
+		ObjectName.Split(".", &Outer, &ObjectName);
+	}
+
 	/* Try to load object using the object path and the object name combined */
 	TObjectPtr<T> LoadedObject = Cast<T>(StaticLoadObject(T::StaticClass(), nullptr, *(ObjectPath + "." + ObjectName)));
+
+	if (ParentObject != nullptr) {
+		if (!Outer.IsEmpty() && ParentObject->IsA(AActor::StaticClass())) {
+			const AActor* NewLoadedObject = Cast<AActor>(ParentObject);
+			auto Components = NewLoadedObject->GetComponents();
+
+			for (UActorComponent* Component : Components) {
+				if (ObjectName == Component->GetName()) {
+					LoadedObject = Cast<T>(Component);
+				}
+			}
+		}
+	}
 
 	/* Material Expression case */
 	if (!LoadedObject && ObjectName.Contains("MaterialExpression")) {
@@ -420,7 +454,6 @@ void IImporter::LoadObject(const TSharedPtr<FJsonObject>* PackageIndex, TObjectP
 		ObjectPath.Split("/", nullptr, &SplitObjectName, ESearchCase::IgnoreCase, ESearchDir::FromEnd);
 		LoadedObject = Cast<T>(StaticLoadObject(T::StaticClass(), nullptr, *(ObjectPath + "." + SplitObjectName + ":" + ObjectName)));
 	}
-#pragma warning( pop )
 
 	Object = LoadedObject;
 
@@ -434,25 +467,26 @@ void IImporter::LoadObject(const TSharedPtr<FJsonObject>* PackageIndex, TObjectP
 
 template <typename T>
 TArray<TObjectPtr<T>> IImporter::LoadObject(const TArray<TSharedPtr<FJsonValue>>& PackageArray, TArray<TObjectPtr<T>> Array) {
-	for (const TSharedPtr<FJsonValue> ArrayElement : PackageArray) {
-		const TSharedPtr<FJsonObject> Ptr = ArrayElement->AsObject();
+	for (const TSharedPtr<FJsonValue>& ArrayElement : PackageArray) {
+		const TSharedPtr<FJsonObject> ObjectPtr = ArrayElement->AsObject();
 
-		FString Type;
-		FString Name;
-		Ptr->GetStringField("ObjectName").Split("'", &Type, &Name);
-		FString Path;
-		Ptr->GetStringField("ObjectPath").Split(".", &Path, nullptr);
-		Name = Name.Replace(TEXT("'"), TEXT(""));
+		FString ObjectType, ObjectName, ObjectPath;
+		
+		ObjectPtr->GetStringField(TEXT("ObjectName")).Split("'", &ObjectType, &ObjectName);
+		ObjectPtr->GetStringField(TEXT("ObjectPath")).Split(".", &ObjectPath, nullptr);
+		RedirectPath(ObjectPath);
 
-		T* Object = Cast<T>(StaticLoadObject(T::StaticClass(), nullptr, *(Path + "." + Name)));
-		Array.Add(DownloadWrapper(Object, Type, Name, Path));
+		ObjectName = ObjectName.Replace(TEXT("'"), TEXT(""));
+
+		TObjectPtr<T> LoadedObject = Cast<T>(StaticLoadObject(T::StaticClass(), nullptr, *(ObjectPath + "." + ObjectName)));
+		Array.Add(DownloadWrapper(LoadedObject, ObjectType, ObjectName, ObjectPath));
 	}
 
 	return Array;
 }
 
 void IImporter::ImportReference(const FString& File) {
-	/* ----  Parse JSON into UE JSON Reader ---- */
+	/* ~~~~  Parse JSON into UE JSON Reader ~~~~ */
 	FString ContentBefore;
 	FFileHelper::LoadFileToString(ContentBefore, *File);
 
@@ -462,34 +496,13 @@ void IImporter::ImportReference(const FString& File) {
 
 	TSharedPtr<FJsonObject> JsonParsed;
 	const TSharedRef<TJsonReader<TCHAR>> JsonReader = TJsonReaderFactory<TCHAR>::Create(Content);
-	/* ---------------------------------------- */
+	/* ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ */
 
 	if (FJsonSerializer::Deserialize(JsonReader, JsonParsed)) {
-		const TArray<TSharedPtr<FJsonValue>> DataObjects = JsonParsed->GetArrayField("data");
+		const TArray<TSharedPtr<FJsonValue>> DataObjects = JsonParsed->GetArrayField(TEXT("data"));
 
 		ReadExportsAndImport(DataObjects, File);
 	}
-}
-
-bool IImporter::HandleReference(const FString& GamePath) {
-	const UJsonAsAssetSettings* Settings = GetDefault<UJsonAsAssetSettings>();
-
-	FString UnSanitizedCodeName;
-	FilePath.Split(Settings->ExportDirectory.Path + "/", nullptr, &UnSanitizedCodeName);
-	UnSanitizedCodeName.Split("/", &UnSanitizedCodeName, nullptr, ESearchCase::IgnoreCase, ESearchDir::FromStart);
-
-	// TODO: As of writing this, I don't know how to add Plugin support
-	FString UnSanitizedPath = GamePath.Replace(TEXT("/Game/"), *(UnSanitizedCodeName + "/Content/"));
-	UnSanitizedPath = Settings->ExportDirectory.Path + "/" + UnSanitizedPath + ".json";
-
-	FString ContentBefore;
-	if (FFileHelper::LoadFileToString(ContentBefore, *UnSanitizedPath)) {
-		ImportReference(UnSanitizedPath);
-
-		return true;
-	}
-
-	return false;
 }
 
 void IImporter::ParsePackageIndex(const TSharedPtr<FJsonObject>* PackageIndex, FString& OutType, FString& OutName, FString& OutPath, FString& OutOuter)
