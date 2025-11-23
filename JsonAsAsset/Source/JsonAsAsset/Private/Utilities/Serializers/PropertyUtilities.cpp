@@ -2,11 +2,6 @@
 
 #include "Utilities/Serializers/PropertyUtilities.h"
 
-#include "UObject/TextProperty.h"
-#include "UObject/UnrealType.h"
-#include "UObject/NoExportTypes.h"
-#include "UObject/EnumProperty.h"
-
 #include "GameplayTagContainer.h"
 #include "Importers/Constructor/Importer.h"
 #include "Utilities/Serializers/ObjectUtilities.h"
@@ -38,7 +33,7 @@ UPropertySerializer::UPropertySerializer() {
 	this->StructSerializers.Add(TimespanStruct, MakeShared<FTimespanSerializer>());
 }
 
-void UPropertySerializer::DeserializePropertyValue(UProperty* Property, const TSharedRef<FJsonValue>& JsonValue, void* OutValue) {
+void UPropertySerializer::DeserializePropertyValue(UProperty* Property, const TSharedRef<FJsonValue>& JsonValue, void* OutValue, UObject* Owner) {
 	const UMapProperty* MapProperty = CastField<const UMapProperty>(Property);
 	const USetProperty* SetProperty = CastField<const USetProperty>(Property);
 	const UArrayProperty* ArrayProperty = CastField<const UArrayProperty>(Property);
@@ -63,8 +58,8 @@ void UPropertySerializer::DeserializePropertyValue(UProperty* Property, const TS
 			uint8* PairPtr = MapHelper.GetPairPtr(Index);
 
 			/* Copy over imported key and value from temporary storage */
-			DeserializePropertyValue(KeyProperty, EntryKey.ToSharedRef(), PairPtr);
-			DeserializePropertyValue(ValueProperty, EntryValue.ToSharedRef(), PairPtr + MapHelper.MapLayout.ValueOffset);
+			DeserializePropertyValue(KeyProperty, EntryKey.ToSharedRef(), PairPtr, Owner);
+			DeserializePropertyValue(ValueProperty, EntryValue.ToSharedRef(), PairPtr + MapHelper.MapLayout.ValueOffset, Owner);
 		}
 		MapHelper.Rehash();
 
@@ -79,7 +74,7 @@ void UPropertySerializer::DeserializePropertyValue(UProperty* Property, const TS
 
 		for (int32 i = 0; i < SetArray.Num(); i++) {
 			const TSharedPtr<FJsonValue>& Element = SetArray[i];
-			DeserializePropertyValue(ElementProperty, Element.ToSharedRef(), TempElementStorage);
+			DeserializePropertyValue(ElementProperty, Element.ToSharedRef(), TempElementStorage, Owner);
 
 			const int32 NewElementIndex = SetHelper.AddDefaultValue_Invalid_NeedsRehash();
 			uint8* NewElementPtr = SetHelper.GetElementPtr(NewElementIndex);
@@ -100,9 +95,12 @@ void UPropertySerializer::DeserializePropertyValue(UProperty* Property, const TS
 
 		for (int32 i = 0; i < SetArray.Num(); i++) {
 			const TSharedPtr<FJsonValue>& Element = SetArray[i];
+			if (Element.Get()->Type == EJson::Null) {
+				continue;
+			}
 			const uint32 AddedIndex = ArrayHelper.AddValue();
 			uint8* ValuePtr = ArrayHelper.GetRawPtr(AddedIndex);
-			DeserializePropertyValue(ElementProperty, Element.ToSharedRef(), ValuePtr);
+			DeserializePropertyValue(ElementProperty, Element.ToSharedRef(), ValuePtr, Owner);
 		}
 	}
 	else if (Property->IsA<UMulticastDelegateProperty>()) {
@@ -153,6 +151,23 @@ void UPropertySerializer::DeserializePropertyValue(UProperty* Property, const TS
 			ObjectProperty->SetObjectPropertyValue(OutValue, nullptr);
 		}
 
+		if (ObjectProperty->PropertyClass->IsChildOf(UActorComponent::StaticClass()))
+		{
+			UObject* ComponentObject = ObjectProperty->GetObjectPropertyValue_InContainer(Owner);
+
+			if (UActorComponent* Component = Cast<UActorComponent>(ComponentObject))
+			{
+				UE_LOG(LogTemp, Log, TEXT("Found component: %s"), *Component->GetName());
+				auto JsonValueAsObject = NewJsonValue->AsObject();
+				TSharedPtr<FJsonObject> ComponentExport = GetExport(JsonValueAsObject.Get(), ObjectSerializer->Exports);
+				TSharedPtr<FJsonObject> ComponentPropertiesData = ComponentExport->GetObjectField(TEXT("Properties"));
+				if (ComponentPropertiesData.IsValid()) {
+					ObjectSerializer->DeserializeObjectProperties(ComponentPropertiesData, Component, Owner);
+				}
+				return;
+			}
+		}
+
 		if (NewJsonValue->Type == EJson::Object) {
 			auto JsonValueAsObject = NewJsonValue->AsObject();
 			bool bUseDefaultLoadObject = !JsonValueAsObject->GetStringField(TEXT("ObjectName")).Contains(":ParticleModule");
@@ -161,7 +176,7 @@ void UPropertySerializer::DeserializePropertyValue(UProperty* Property, const TS
 				/* Use IImporter to import the object */
 				IImporter* Importer = new IImporter();
 
-				Importer->ParentObject = ObjectSerializer->ParentAsset;
+				Importer->ParentObject = ObjectSerializer->Parent;
 				Importer->LoadObject(&JsonValueAsObject, Object);
 
 				if (Object == nullptr) {
@@ -187,7 +202,7 @@ void UPropertySerializer::DeserializePropertyValue(UProperty* Property, const TS
 					/* Get the export */
 					TSharedPtr<FJsonObject> Export = GetExport(JsonValueAsObject.Get(), ObjectSerializer->Exports);
 					if (Export.IsValid()) {
-						if (Export->HasField(TEXT("Properties"))) {
+						if (Export->HasField(TEXT("Properties")) && ObjectSerializer->Parent != nullptr && (Export->GetStringField("Outer") == ObjectSerializer->Parent->GetName())) {
 							TSharedPtr<FJsonObject> Properties = Export->GetObjectField(TEXT("Properties"));
 
 							if (Export->HasField(TEXT("LODData"))) {
@@ -250,7 +265,7 @@ void UPropertySerializer::DeserializePropertyValue(UProperty* Property, const TS
 			}
 
 			if (bFallbackToParentTrace) {
-				if (UObject* Parent = ObjectSerializer->ParentAsset) {
+				if (UObject* Parent = ObjectSerializer->Parent) {
 					FString Name = Parent->GetName();
 
 					FUObjectExport Export = ExportsContainer.Find(ObjectName, Name);
@@ -317,17 +332,17 @@ void UPropertySerializer::DeserializePropertyValue(UProperty* Property, const TS
 		/* JSON for FGuids are FStrings */
 		FString OutString;
 
-		FGuid GUID;
-		if (FGuid::Parse(OutString, GUID))
-		{
-			TSharedRef<FJsonObject> SharedObject = MakeShareable(new FJsonObject());
-			SharedObject->SetNumberField(TEXT("A"), GUID.A);
-			SharedObject->SetNumberField(TEXT("B"), GUID.B);
-			SharedObject->SetNumberField(TEXT("C"), GUID.C);
-			SharedObject->SetNumberField(TEXT("D"), GUID.D);
+		if (JsonValue->TryGetString(OutString)) {
+			FGuid GUID;
+			if (FGuid::Parse(OutString, GUID))
+			{
+				TSharedRef<FJsonObject> SharedObject = MakeShareable(new FJsonObject());
+				SharedObject->SetNumberField(TEXT("A"), GUID.A); SharedObject->SetNumberField(TEXT("B"), GUID.B);
+				SharedObject->SetNumberField(TEXT("C"), GUID.C); SharedObject->SetNumberField(TEXT("D"), GUID.D);
 
-			const TSharedRef<FJsonValue> NewValue = MakeShareable(new FJsonValueObject(SharedObject));
-			NewJsonValue = NewValue;
+				const TSharedRef<FJsonValue> NewValue = MakeShareable(new FJsonValueObject(SharedObject));
+				NewJsonValue = NewValue;
+			}
 		}
 
 		/* To serialize struct, we need its type and value pointer, because struct value doesn't contain type information */
@@ -418,12 +433,10 @@ void UPropertySerializer::ClearCachedData() {
 void UPropertySerializer::DisablePropertySerialization(UStruct* Struct, FName PropertyName) {
 	UProperty* Property = Struct->FindPropertyByName(PropertyName);
 	checkf(Property, TEXT("Cannot find Property %s in Struct %s"), *PropertyName.ToString(), *Struct->GetPathName());
-	this->PinnedStructs.Add(Struct);
 	this->BlacklistedProperties.Add(Property);
 }
 
 void UPropertySerializer::AddStructSerializer(UScriptStruct* Struct, const TSharedPtr<FStructSerializer>& Serializer) {
-	this->PinnedStructs.Add(Struct);
 	this->StructSerializers.Add(Struct, Serializer);
 }
 

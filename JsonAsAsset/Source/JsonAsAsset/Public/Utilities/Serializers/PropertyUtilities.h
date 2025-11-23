@@ -9,10 +9,7 @@
 #include "UObject/Object.h"
 #include "UObject/UnrealType.h"
 #include "Utilities/Compatibility.h"
-
 #include "PropertyUtilities.generated.h"
-
-class UObjectSerializer;
 
 USTRUCT()
 struct FFailedPropertyInfo
@@ -36,10 +33,7 @@ class JSONASASSET_API UPropertySerializer : public UObject
     friend class UObjectSerializer;
 
     UPROPERTY()
-        UObjectSerializer* ObjectSerializer;
-
-    UPROPERTY()
-        TArray<UStruct*> PinnedStructs;
+    UObjectSerializer* ObjectSerializer;
 
     TArray<UProperty*> BlacklistedProperties;
     TSharedPtr<FStructSerializer> FallbackStructSerializer;
@@ -62,7 +56,7 @@ public:
     /** Checks whenever we should serialize property in question at all */
     bool ShouldDeserializeProperty(UProperty* Property) const;
 
-    void DeserializePropertyValue(UProperty* Property, const TSharedRef<FJsonValue>& Value, void* OutValue);
+    void DeserializePropertyValue(UProperty* Property, const TSharedRef<FJsonValue>& Value, void* OutValue, UObject* Owner);
     void DeserializeStruct(UScriptStruct* Struct, const TSharedRef<FJsonObject>& Value, void* OutValue) const;
 private:
     FStructSerializer* GetStructSerializer(UScriptStruct* Struct) const;
@@ -118,7 +112,7 @@ inline bool PassthroughPropertyHandler(UProperty* Property, const FString& Prope
 
 			const TSharedRef<FJsonValue> ArrayJsonValue = ArrayJsonElement.ToSharedRef();
 
-			PropertySerializer->DeserializePropertyValue(Property, ArrayJsonValue, ArrayPropertyValue);
+			PropertySerializer->DeserializePropertyValue(Property, ArrayJsonValue, ArrayPropertyValue, nullptr);
 		}
 
 		return true;
