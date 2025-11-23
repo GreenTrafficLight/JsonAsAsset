@@ -17,7 +17,9 @@
 #include "IDesktopPlatform.h"
 #include "RemoteUtilities.h"
 #include "AssetUtilities.h"
-
+#if !UE4_18_BELOW
+#include "PluginUtils.h"
+#endif
 #include "HttpModule.h"
 #include "IMessageLogListing.h"
 #include "ISettingsModule.h"
@@ -29,6 +31,7 @@
 
 #include "K2Node_FunctionEntry.h"
 #include "K2Node_Event.h"
+#include "Engine/SCS_Node.h"
 
 /**
  * Get the asset currently selected in the Content Browser.
@@ -181,6 +184,13 @@ inline TSharedPtr<FJsonObject> GetExport(const FJsonObject* PackageIndex, TArray
 	return nullptr;
 }
 
+/* ReSharper disable once CppParameterNeverUsed */
+inline void SetNotificationSubText(FNotificationInfo& Notification, const FText& SubText) {
+#if ENGINE_UE5
+	Notification.SubText = SubText;
+#endif
+}
+
 /* Show the user a Notification */
 inline auto AppendNotification(const FText& Text, const FText& SubText, const float ExpireDuration,
 	const SNotificationItem::ECompletionState CompletionState, const bool bUseSuccessFailIcons,
@@ -188,13 +198,11 @@ inline auto AppendNotification(const FText& Text, const FText& SubText, const fl
 {
 	FNotificationInfo Info = FNotificationInfo(Text);
 	Info.ExpireDuration = ExpireDuration;
-	Info.bUseLargeFont = false;
+	Info.bUseLargeFont = true;
 	Info.bUseSuccessFailIcons = bUseSuccessFailIcons;
 	Info.WidthOverride = FOptionalSize(WidthOverride);
 
-	Info.Hyperlink = FSimpleDelegate::CreateStatic([]() {
-	});
-	Info.HyperlinkText = SubText;
+	SetNotificationSubText(Info, SubText);
 
 	const TSharedPtr<SNotificationItem> NotificationPtr = FSlateNotificationManager::Get().AddNotification(Info);
 	NotificationPtr->SetCompletionState(CompletionState);
@@ -207,14 +215,12 @@ inline auto AppendNotification(const FText& Text, const FText& SubText, float Ex
 {
 	FNotificationInfo Info = FNotificationInfo(Text);
 	Info.ExpireDuration = ExpireDuration;
-	Info.bUseLargeFont = false;
+	Info.bUseLargeFont = true;
 	Info.bUseSuccessFailIcons = bUseSuccessFailIcons;
 	Info.WidthOverride = FOptionalSize(WidthOverride);
 	Info.Image = SlateBrush;
 
-	Info.Hyperlink = FSimpleDelegate::CreateStatic([]() {
-	});
-	Info.HyperlinkText = SubText;
+	SetNotificationSubText(Info, SubText);
 
 	const TSharedPtr<SNotificationItem> NotificationPtr = FSlateNotificationManager::Get().AddNotification(Info);
 	NotificationPtr->SetCompletionState(CompletionState);
@@ -247,6 +253,60 @@ inline FString ReadPathFromObject(const TSharedPtr<FJsonObject>* PackageIndex) {
 	}
 
 	return ObjectPath + "." + ObjectName;
+}
+
+/* Creates a plugin in the name (may result in bugs if inputted wrong) */
+static void CreatePlugin(FString PluginName) {
+	/* Plugin creation is different between UE5 and UE4 */
+#if ENGINE_UE5
+	FPluginUtils::FNewPluginParamsWithDescriptor CreationParams;
+	CreationParams.Descriptor.bCanContainContent = true;
+
+	CreationParams.Descriptor.FriendlyName = PluginName;
+	CreationParams.Descriptor.Version = 1;
+	CreationParams.Descriptor.VersionName = TEXT("1.0");
+	CreationParams.Descriptor.Category = TEXT("Other");
+
+	FText FailReason;
+	FPluginUtils::FLoadPluginParams LoadParams;
+	LoadParams.bEnablePluginInProject = true;
+	LoadParams.bUpdateProjectPluginSearchPath = true;
+	LoadParams.bSelectInContentBrowser = false;
+
+	FPluginUtils::CreateAndLoadNewPlugin(PluginName, FPaths::ProjectPluginsDir(), CreationParams, LoadParams);
+#elif UE4_18_BELOW
+
+#else
+	FPluginUtils::FNewPluginParams CreationParams;
+	CreationParams.bCanContainContent = true;
+
+	FText FailReason;
+	FPluginUtils::FMountPluginParams LoadParams;
+	LoadParams.bEnablePluginInProject = true;
+	LoadParams.bUpdateProjectPluginSearchPath = true;
+	LoadParams.bSelectInContentBrowser = false;
+
+	FPluginUtils::CreateAndMountNewPlugin(PluginName, FPaths::ProjectPluginsDir(), CreationParams, LoadParams, FailReason);
+#endif
+
+#define LOCTEXT_NAMESPACE "UMG"
+#if WITH_EDITOR
+	/* Setup notification's arguments */
+	FFormatNamedArguments Args;
+	Args.Add(TEXT("PluginName"), FText::FromString(PluginName));
+
+	/* Create notification */
+	FNotificationInfo Info(FText::Format(LOCTEXT("PluginCreated", "Plugin Created: {PluginName}"), Args));
+	Info.ExpireDuration = 10.0f;
+	Info.bUseLargeFont = true;
+	Info.bUseSuccessFailIcons = false;
+	Info.WidthOverride = FOptionalSize(350);
+	SetNotificationSubText(Info, FText::FromString(FString("Created successfully")));
+
+	const TSharedPtr<SNotificationItem> NotificationPtr = FSlateNotificationManager::Get().AddNotification(Info);
+	NotificationPtr->SetCompletionState(SNotificationItem::CS_Success);
+#endif
+#undef LOCTEXT_NAMESPACE
 }
 
 inline bool DeserializeJSONObject(const FString& String, TSharedPtr<FJsonObject>& JsonParsed) {
@@ -359,13 +419,6 @@ inline auto ProcessJsonArrayField(const TSharedPtr<FJsonObject>& ObjectField, co
 	}
 }
 
-/* ReSharper disable once CppParameterNeverUsed */
-inline void SetNotificationSubText(FNotificationInfo& Notification, const FText& SubText) {
-#if ENGINE_UE5
-	Notification.SubText = SubText;
-#endif
-}
-
 inline TSharedPtr<FJsonObject> RequestObjectURL(const FString& URL) {
 	FHttpModule* HttpModule = &FHttpModule::Get();
 
@@ -402,16 +455,22 @@ inline TSubclassOf<UObject> LoadClassFromPath(const FString& ObjectName, const F
 inline TSubclassOf<UObject> LoadBlueprintClass(FString& ObjectPath) {
 	const UJsonAsAssetSettings* Settings = GetDefault<UJsonAsAssetSettings>();
 
-	ObjectPath = ObjectPath.Replace(TEXT("Nimbus/Content"), TEXT("/Game"));
+	if (!Settings->AssetSettings.GameName.IsEmpty()) {
+		ObjectPath = ObjectPath.Replace(*(Settings->AssetSettings.GameName + "/Content"), TEXT("/Game"));
+	}
 
 	FString FullPath = ObjectPath;
 	if (FullPath.EndsWith(TEXT(".1"))) {
 		FullPath = FullPath.LeftChop(2);
 	}
 
+#if UE4_18_BELOW
 	UObject* LoadedObject = StaticLoadObject(UObject::StaticClass(), nullptr, *FullPath);
-
-	if (LoadedObject) {
+	if (LoadedObject)
+#else
+	if (UObject* LoadedObject = StaticLoadObject(UObject::StaticClass(), nullptr, *FullPath))
+#endif
+	{
 		const UBlueprint* LoadedBlueprint = Cast<UBlueprint>(LoadedObject);
 
 		if (LoadedBlueprint && LoadedBlueprint->GeneratedClass) {
@@ -485,12 +544,60 @@ inline UJsonAsAssetSettings* GetSettings() {
 	return GetMutableDefault<UJsonAsAssetSettings>();
 }
 
+inline FJsonObject* EnsureObjectField(FJsonObject* Parent, const FString& FieldName) {
+	if (!Parent->HasField(FieldName)) {
+		Parent->SetObjectField(FieldName, MakeShareable(new FJsonObject()));
+	}
+
+	return Parent->GetObjectField(FieldName).Get();
+}
+
+inline FJsonObject* EnsureObjectField(const TSharedPtr<FJsonObject>& Parent, const FString& FieldName) {
+	if (!Parent->HasField(FieldName)) {
+		Parent->SetObjectField(FieldName, MakeShareable(new FJsonObject()));
+	}
+
+	return Parent->GetObjectField(FieldName).Get();
+}
+
+inline TArray<TSharedPtr<FJsonValue>> EnsureArrayField(const TSharedPtr<FJsonObject>& Parent, const FString& FieldName) {
+	if (!Parent->HasField(FieldName)) {
+		Parent->SetArrayField(FieldName, TArray<TSharedPtr<FJsonValue>>());
+	}
+
+	return Parent->GetArrayField(FieldName);
+}
+
+inline FName GetExportNameOfSubobject(const FString& PackageIndex) {
+	FString Name; {
+		PackageIndex.Split("'", nullptr, &Name);
+		Name.Split(":", nullptr, &Name);
+		Name = Name.Replace(TEXT("'"), TEXT(""));
+	}
+
+#if UE4_18_BELOW
+	return FName(*Name);
+#else
+	return FName(Name);
+#endif
+}
+
+inline TSharedPtr<FJsonValue> GetExportByObjectPath(const TSharedPtr<FJsonObject>& Object, TArray<TSharedPtr<FJsonValue>> AllJsonObjects) {
+	const TSharedPtr<FJsonObject> ValueObject = TSharedPtr<FJsonObject>(Object);
+
+	FString StringIndex; {
+		ValueObject->GetStringField("ObjectPath").Split(".", nullptr, &StringIndex);
+	}
+
+	return AllJsonObjects[FCString::Atod(*StringIndex)];
+}
+
 /**
  * Get the ubergraph of a blueprint
  *
- * 
+ *
  */
-UEdGraph* GetUberGraph(UBlueprint* Blueprint) {
+inline UEdGraph* GetUberGraph(UBlueprint* Blueprint) {
 	if (Blueprint->UbergraphPages.Num() > 0) {
 		return Blueprint->UbergraphPages[0];
 	}
@@ -500,7 +607,7 @@ UEdGraph* GetUberGraph(UBlueprint* Blueprint) {
 /**
  * Remove the event nodes from a graph
  */
-void RemoveEventNodes(UEdGraph* EdGraph) {
+inline void RemoveEventNodes(UEdGraph* EdGraph) {
 	TArray<UK2Node_Event*> EventNodes;
 	for (UEdGraphNode* Node : EdGraph->Nodes) {
 		if (UK2Node_Event* EventNode = Cast<UK2Node_Event>(Node)) {
@@ -511,4 +618,42 @@ void RemoveEventNodes(UEdGraph* EdGraph) {
 	for (UK2Node_Event* EventNode : EventNodes) {
 		EdGraph->RemoveNode(EventNode);
 	}
+}
+
+inline void GetAllSCSNodes(UBlueprint* Blueprint, TArray<USCS_Node*>& OutNodes)
+{
+	if (!Blueprint)
+		return;
+
+	// Add current Blueprint’s nodes
+	if (Blueprint->SimpleConstructionScript)
+	{
+		OutNodes.Append(Blueprint->SimpleConstructionScript->GetAllNodes());
+	}
+
+	// Walk up the inheritance chain to include parent Blueprints
+	for (UBlueprint* ParentBP = Cast<UBlueprint>(Blueprint->ParentClass ? Blueprint->ParentClass->ClassGeneratedBy : nullptr);
+		ParentBP;
+		ParentBP = Cast<UBlueprint>(ParentBP->ParentClass ? ParentBP->ParentClass->ClassGeneratedBy : nullptr))
+	{
+		if (ParentBP->SimpleConstructionScript)
+		{
+			OutNodes.Append(ParentBP->SimpleConstructionScript->GetAllNodes());
+		}
+	}
+}
+
+inline USCS_Node* FindSCSNodeByName(const TArray<USCS_Node*>& AllNodes, const FName& ComponentName)
+{
+	for (USCS_Node* Node : AllNodes)
+	{
+		if (!Node) {
+			continue;
+		}
+			
+		if (Node->GetVariableName() == ComponentName) {
+			return Node;
+		}
+	}
+	return nullptr;
 }
