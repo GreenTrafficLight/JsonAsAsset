@@ -45,6 +45,7 @@ public class JsonAsAsset : ModuleRules
 			"Detex",
 			"NVTT",
 			"MainFrame",
+            "MeshUtilities",
         });
 	}
 }
