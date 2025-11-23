@@ -3,20 +3,35 @@
 #include "detex.h"
 #include "Engine/TextureRenderTarget2D.h"
 #include "Engine/TextureCube.h"
+#if !UE4_18_BELOW
+#include "Engine/VolumeTexture.h"
+#endif
+#include "Factories/TextureFactory.h"
 #include "Factories/TextureRenderTargetFactoryNew.h"
 #include "nvimage/DirectDrawSurface.h"
 #include "nvimage/Image.h"
+#include "Utilities/EngineUtilities.h"
 #include "Utilities/JsonUtilities.h"
-#include "Engine/Texture.h"
-#include "Engine/Texture2D.h"
-#include "Utilities/TextureDecode/TextureNVTT.h"
-#include "UObject/UnrealType.h"
-#include "Engine/TextureDefines.h"
+#include "Utilities/Textures/TextureDecode/TextureNVTT.h"
 
-bool UTextureImporter::ImportTexture2D(UTexture*& OutTexture2D, TArray<uint8>& Data, const TSharedPtr<FJsonObject>& Properties) const {
-	const TSharedPtr<FJsonObject> SubObjectProperties = Properties->GetObjectField(TEXT("Properties"));
+template bool UTextureImporter::ImportTexture2D<UTexture2D>(UTexture*&, TArray<uint8>&, const TSharedPtr<FJsonObject>&);
+template bool UTextureImporter::ImportTexture2D<UTextureLightProfile>(UTexture*&, TArray<uint8>&, const TSharedPtr<FJsonObject>&);
 
-	UTexture2D* Texture2D = NewObject<UTexture2D>(OutermostPkg, UTexture2D::StaticClass(), *AssetName, RF_Standalone | RF_Public);
+template <typename T>
+bool UTextureImporter::ImportTexture2D(UTexture*& OutTexture2D, TArray<uint8>& Data, const TSharedPtr<FJsonObject>& Properties) {
+	UTexture2D* Texture2D;
+
+	if (bUseOctetStream) {
+		Texture2D = NewObject<T>(OutermostPkg, T::StaticClass(), *AssetName, RF_Standalone | RF_Public);
+	} else {
+		UTextureFactory* TextureFactory = NewObject<UTextureFactory>();
+		TextureFactory->AddToRoot();
+		TextureFactory->SuppressImportOverwriteDialog();
+
+		const uint8* ImageData = Data.GetData();
+		Texture2D = Cast<T>(TextureFactory->FactoryCreateBinary(T::StaticClass(), Package, *AssetName, RF_Standalone | RF_Public, nullptr,
+			*FPaths::GetExtension(AssetName + ".png").ToLower(), ImageData, ImageData + Data.Num(), GWarn));
+	}
 
 #if ENGINE_UE5
 	Texture2D->SetPlatformData(new FTexturePlatformData());
@@ -24,7 +39,7 @@ bool UTextureImporter::ImportTexture2D(UTexture*& OutTexture2D, TArray<uint8>& D
 	Texture2D->PlatformData = new FTexturePlatformData();
 #endif
 
-	ImportTexture2D_Data(Texture2D, SubObjectProperties);
+	DeserializeTexture2D(Texture2D, Properties->GetObjectField(TEXT("Properties")));
 
 #if ENGINE_UE5
 	FTexturePlatformData* PlatformData = Texture2D->GetPlatformData();
@@ -32,52 +47,25 @@ bool UTextureImporter::ImportTexture2D(UTexture*& OutTexture2D, TArray<uint8>& D
 	FTexturePlatformData* PlatformData = Texture2D->PlatformData;
 #endif
 
-	const int SizeX = Properties->GetNumberField(TEXT("SizeX"));
-	const int SizeY = Properties->GetNumberField(TEXT("SizeY"));
-	constexpr int SizeZ = 1; /* Tex2D doesn't have depth */
-
+#if UE4_18_BELOW
 	const TArray<TSharedPtr<FJsonValue>>* TextureMipsPtr;
 	Properties->TryGetArrayField(TEXT("Mips"), TextureMipsPtr);
-	if (TextureMipsPtr) {
-		auto TextureMips = *TextureMipsPtr;
+#else
+	if (const TArray<TSharedPtr<FJsonValue>>* TextureMipsPtr; Properties->TryGetArrayField(TEXT("Mips"), TextureMipsPtr))
+#endif
+	{
+		const auto TextureMips = *TextureMipsPtr;
+
 		if (TextureMips.Num() == 1) {
-			Texture2D->MipGenSettings = TextureMipGenSettings::TMGS_NoMipmaps;
+			Texture2D->MipGenSettings = TMGS_NoMipmaps;
 		}
 	}
 
-	FString PixelFormat;
-	if (Properties->TryGetStringField(TEXT("PixelFormat"), PixelFormat)) {
-		PlatformData->PixelFormat = static_cast<EPixelFormat>(Texture2D->GetPixelFormatEnum()->GetValueByNameString(PixelFormat));
+	if (bUseOctetStream) {
+		DeserializeTexturePlatformData(Texture2D, Data, *PlatformData, Properties);
 	}
 
-	int Size = SizeX * SizeY * (PlatformData->PixelFormat == PF_BC6H ? 16 : 4);
-	if (PlatformData->PixelFormat == PF_B8G8R8A8 || PlatformData->PixelFormat == PF_FloatRGBA || PlatformData->PixelFormat == PF_G16) Size = Data.Num();
-	uint8* DecompressedData = static_cast<uint8*>(FMemory::Malloc(Size));
-
-	GetDecompressedTextureData(Data.GetData(), DecompressedData, SizeX, SizeY, SizeZ, Size, PlatformData->PixelFormat);
-
-	ETextureSourceFormat Format = TSF_BGRA8;
-	if (Texture2D->CompressionSettings == TC_HDR) Format = TSF_RGBA16F;
-#if UE4_18_BELOW
-	if (PlatformData->PixelFormat == PF_G16) Format = TSF_G8;
-#else
-	if (PlatformData->PixelFormat == PF_G16) Format = TSF_G16;
-#endif
-	Texture2D->Source.Init(SizeX, SizeY, 1, 1, Format);
-	uint8_t* Dest = Texture2D->Source.LockMip(0);
-	FMemory::Memcpy(Dest, DecompressedData, Size);
-	Texture2D->Source.UnlockMip(0);
-
-	if (Texture2D->LODGroup == 255) {
-		Texture2D->LODGroup = TextureGroup::TEXTUREGROUP_World;
-	}
-
-	Texture2D->UpdateResource();
-
-	if (Texture2D && Texture2D->IsValidLowLevel() && Texture2D != nullptr) {
-		OutTexture2D = Texture2D;
-		return true;
-	}
+	OutTexture2D = Texture2D;
 
 	return false;
 }
@@ -95,16 +83,15 @@ bool UTextureImporter::ImportRenderTarget2D(UTexture*& OutRenderTarget2D, const 
 }
 
 // Handle UTexture2D
-bool UTextureImporter::ImportTexture2D_Data(UTexture2D* InTexture2D, const TSharedPtr<FJsonObject>& Properties) const {
+bool UTextureImporter::DeserializeTexture2D(UTexture2D* InTexture2D, const TSharedPtr<FJsonObject>& Properties) const {
 	if (InTexture2D == nullptr) return false;
 
-	ImportTexture_Data(InTexture2D, Properties);
+	DeserializeTexture(InTexture2D, Properties);
 
 	FString AddressX;
 	FString AddressY;
 	bool bHasBeenPaintedInEditor;
 
-	// Get the TextureAddress enum
 	UEnum* TextureAddressEnum = FindObject<UEnum>(ANY_PACKAGE, TEXT("TextureAddress"), true);
 	if (Properties->TryGetStringField("AddressX", AddressX) && TextureAddressEnum)
 	{
@@ -129,18 +116,27 @@ bool UTextureImporter::ImportTexture2D_Data(UTexture2D* InTexture2D, const TShar
 		InTexture2D->bHasBeenPaintedInEditor = bHasBeenPaintedInEditor;
 	}
 
-	// --------- Platform Data --------- //
+	/* ~~~~~~~~~~~~~ Platform Data ~~~~~~~~~~~~~ */
+#if ENGINE_UE5
+	FTexturePlatformData* PlatformData = InTexture2D->GetPlatformData();
+#else
 	FTexturePlatformData* PlatformData = InTexture2D->PlatformData;
-
+#endif
 	int SizeX;
 	int SizeY;
+#if !UE4_18_BELOW
+	uint32 PackedData;
+#endif
 	FString PixelFormat;
 
 	// Pixel format enum
 	UEnum* PixelFormatEnum = FindObject<UEnum>(ANY_PACKAGE, TEXT("EPixelFormat"), true);
 
-	if (Properties->TryGetNumberField("SizeX", SizeX)) PlatformData->SizeX = SizeX;
-	if (Properties->TryGetNumberField("SizeY", SizeY)) PlatformData->SizeY = SizeY;
+	if (Properties->TryGetNumberField(TEXT("SizeX"), SizeX)) PlatformData->SizeX = SizeX;
+	if (Properties->TryGetNumberField(TEXT("SizeY"), SizeY)) PlatformData->SizeY = SizeY;
+#if !UE4_18_BELOW
+	if (Properties->TryGetNumberField(TEXT("PackedData"), PackedData)) PlatformData->PackedData = PackedData;
+#endif
 	if (Properties->TryGetStringField("PixelFormat", PixelFormat) && PixelFormatEnum)
 	{
 		int32 Value = PixelFormatEnum->GetIndexByNameString(PixelFormat);
@@ -153,16 +149,13 @@ bool UTextureImporter::ImportTexture2D_Data(UTexture2D* InTexture2D, const TShar
 	int FirstResourceMemMip;
 	int LevelIndex;
 
-	if (Properties->TryGetNumberField("FirstResourceMemMip", FirstResourceMemMip))
-		InTexture2D->FirstResourceMemMip = FirstResourceMemMip;
-
-	if (Properties->TryGetNumberField("LevelIndex", LevelIndex))
-		InTexture2D->LevelIndex = LevelIndex;
+	if (Properties->TryGetNumberField(TEXT("FirstResourceMemMip"), FirstResourceMemMip)) InTexture2D->FirstResourceMemMip = FirstResourceMemMip;
+	if (Properties->TryGetNumberField(TEXT("LevelIndex"), LevelIndex)) InTexture2D->LevelIndex = LevelIndex;
 
 	return false;
 }
 
-bool UTextureImporter::ImportTexture_Data(UTexture* InTexture, const TSharedPtr<FJsonObject>& Properties) const {
+bool UTextureImporter::DeserializeTexture(UTexture* InTexture, const TSharedPtr<FJsonObject>& Properties) const {
 	if (InTexture == nullptr) return false;
 
 	GetObjectSerializer()->DeserializeObjectProperties(RemovePropertiesShared(Properties,
@@ -170,6 +163,54 @@ bool UTextureImporter::ImportTexture_Data(UTexture* InTexture, const TSharedPtr<
 			"ImportedSize",
 			"LODBias"
 		}), InTexture);
+
+	return false;
+}
+
+bool UTextureImporter::DeserializeTexturePlatformData(UTexture* Texture, TArray<uint8>& Data, FTexturePlatformData& TexturePlatformData,
+	const TSharedPtr<FJsonObject>& Properties)
+{
+	const int SizeX = Properties->GetNumberField(TEXT("SizeX"));
+	const int SizeY = Properties->GetNumberField(TEXT("SizeY"));
+	constexpr int SizeZ = 1;
+
+	FString PixelFormat;
+	if (Properties->TryGetStringField(TEXT("PixelFormat"), PixelFormat)) {
+		TexturePlatformData.PixelFormat = static_cast<EPixelFormat>(Texture->GetPixelFormatEnum()->GetValueByNameString(PixelFormat));
+	}
+
+	int Size = SizeX * SizeY * (TexturePlatformData.PixelFormat == PF_BC6H ? 16 : 4);
+	if (TexturePlatformData.PixelFormat == PF_B8G8R8A8 || TexturePlatformData.PixelFormat == PF_FloatRGBA || TexturePlatformData.PixelFormat == PF_G16) Size = Data.Num();
+	uint8* DecompressedData = static_cast<uint8*>(FMemory::Malloc(Size));
+
+	if (bUseOctetStream) {
+		GetDecompressedTextureData(Data.GetData(), DecompressedData, SizeX, SizeY, SizeZ, Size, TexturePlatformData.PixelFormat);
+	}
+	else {
+		DecompressedData = Data.GetData();
+	}
+
+	ETextureSourceFormat Format = TSF_BGRA8;
+	if (Texture->CompressionSettings == TC_HDR) Format = TSF_RGBA16F;
+#if UE4_18_BELOW
+	if (TexturePlatformData.PixelFormat == PF_G16) Format = TSF_G8;
+#else
+	if (TexturePlatformData.PixelFormat == PF_G16) Format = TSF_G16;
+#endif
+	Texture->Source.Init(SizeX, SizeY, 1, 1, Format);
+	uint8_t* Dest = Texture->Source.LockMip(0);
+	FMemory::Memcpy(Dest, DecompressedData, Size);
+	Texture->Source.UnlockMip(0);
+
+	if (Texture->LODGroup == 255) {
+		Texture->LODGroup = TEXTUREGROUP_World;
+	}
+
+	Texture->UpdateResource();
+
+	if (Texture && Texture->IsValidLowLevel() && Texture != nullptr) {
+		return true;
+	}
 
 	return false;
 }

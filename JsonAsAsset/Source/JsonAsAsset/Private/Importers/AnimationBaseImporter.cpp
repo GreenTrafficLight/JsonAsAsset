@@ -45,11 +45,10 @@ bool IAnimationBaseImporter::Import() {
 		CastedAnimSequence->Notifies.Empty();
 	}
 
-	UObjectSerializer* ObjectSerializer = GetObjectSerializer();
-	ObjectSerializer->SetExportForDeserialization(JsonObject, AnimSequenceBase);
-	ObjectSerializer->ParentAsset = AnimSequenceBase;
+	GetObjectSerializer()->SetExportForDeserialization(JsonObject, AnimSequenceBase);
+	GetObjectSerializer()->Parent = AnimSequenceBase;
 
-	ObjectSerializer->DeserializeExports(AllJsonObjects);
+	GetObjectSerializer()->DeserializeExports(AllJsonObjects);
 
 	/* Deserialize properties */
 	GetObjectSerializer()->DeserializeObjectProperties(KeepPropertiesShared(AssetData, {

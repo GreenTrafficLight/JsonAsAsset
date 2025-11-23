@@ -4,16 +4,19 @@
 #include "Engine/DataAsset.h"
 
 bool IDataAssetImporter::Import() {
+#if UE4_18_BELOW
 	UDataAsset* DataAsset = NewObject<UDataAsset>(Package, AssetClass, FName(*AssetName), RF_Public | RF_Standalone);
+#else
+	UDataAsset* DataAsset = NewObject<UDataAsset>(Package, AssetClass, FName(AssetName), RF_Public | RF_Standalone);
+#endif
 	auto _ = DataAsset->MarkPackageDirty();
 
-	UObjectSerializer* ObjectSerializer = GetObjectSerializer();
-	ObjectSerializer->SetExportForDeserialization(JsonObject, DataAsset);
-	ObjectSerializer->ParentAsset = DataAsset;
+	GetObjectSerializer()->SetExportForDeserialization(JsonObject, DataAsset);
+	GetObjectSerializer()->Parent = DataAsset;
 
-	ObjectSerializer->DeserializeExports(AllJsonObjects);
+	GetObjectSerializer()->DeserializeExports(AllJsonObjects);
 
-	ObjectSerializer->DeserializeObjectProperties(AssetData, DataAsset);
+	GetObjectSerializer()->DeserializeObjectProperties(AssetData, DataAsset);
 
 	return OnAssetCreation(DataAsset);
 }

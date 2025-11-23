@@ -7,15 +7,18 @@ template class ITemplatedImporter<UObject>;
 
 template <typename AssetType>
 bool ITemplatedImporter<AssetType>::Import() {
+#if UE4_18_BELOW
 	AssetType* Asset = NewObject<AssetType>(Package, AssetClass ? AssetClass : AssetType::StaticClass(), FName(*AssetName), RF_Public | RF_Standalone);
+#else
+	AssetType* Asset = NewObject<AssetType>(Package, AssetClass ? AssetClass : AssetType::StaticClass(), FName(AssetName), RF_Public | RF_Standalone);
+#endif
 
 	Asset->MarkPackageDirty();
 
-	UObjectSerializer* ObjectSerializer = GetObjectSerializer();
-	ObjectSerializer->SetExportForDeserialization(JsonObject, Asset);
-	ObjectSerializer->ParentAsset = Asset;
+	GetObjectSerializer()->SetExportForDeserialization(JsonObject, Asset);
+	GetObjectSerializer()->Parent = Asset;
 
-	ObjectSerializer->DeserializeExports(AllJsonObjects);
+	GetObjectSerializer()->DeserializeExports(AllJsonObjects);
 
 	GetObjectSerializer()->DeserializeObjectProperties(AssetData, Asset);
 
