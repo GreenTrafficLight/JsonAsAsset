@@ -19,7 +19,7 @@ void FFallbackStructSerializer::Deserialize(UScriptStruct* Struct, void* StructV
 				const TSharedPtr<FJsonValue> ValueObject = JsonValue->Values.FindChecked(PropertyName);
 
 				if (Property->ArrayDim == 1 || ValueObject->Type == EJson::Array) {
-					PropertySerializer->DeserializePropertyValue(Property, ValueObject.ToSharedRef(), PropertyValue);
+					PropertySerializer->DeserializePropertyValue(Property, ValueObject.ToSharedRef(), PropertyValue, nullptr);
 				}
 			}
 		}
