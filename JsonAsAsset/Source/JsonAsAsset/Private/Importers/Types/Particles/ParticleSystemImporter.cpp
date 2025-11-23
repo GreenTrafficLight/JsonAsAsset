@@ -24,7 +24,7 @@ bool IParticleSystemImporter::Import() {
 
 void IParticleSystemImporter::CreateEmitters(UParticleSystem* ParticleSystem, const TArray<TSharedPtr<FJsonValue>> EmittersObjectPath) {
 	for (const TSharedPtr<FJsonValue>& EmitterObjectPath : EmittersObjectPath) {
-		const TSharedPtr<FJsonObject> EmitterObject = TSharedPtr<FJsonObject>(GetExportByObjectPath(EmitterObjectPath->AsObject())->AsObject());
+		const TSharedPtr<FJsonObject> EmitterObject = TSharedPtr<FJsonObject>(GetExportByObjectPath(EmitterObjectPath->AsObject(), AllJsonObjects)->AsObject());
 		const TSharedPtr<FJsonObject> EmitterObjectProperties = EmitterObject->GetObjectField(TEXT("Properties"));
 
 		UParticleEmitter* Emitter = NewObject<UParticleSpriteEmitter>(
@@ -45,7 +45,7 @@ void IParticleSystemImporter::CreateEmitters(UParticleSystem* ParticleSystem, co
 
 void IParticleSystemImporter::CreateLODLevels(UParticleEmitter* Emitter, const TArray<TSharedPtr<FJsonValue>> LODLevelsObjectPath) {
 	for (const TSharedPtr<FJsonValue>& LODLevelObjectPath : LODLevelsObjectPath) {
-		const TSharedPtr<FJsonObject> LODLevelObject = TSharedPtr<FJsonObject>(GetExportByObjectPath(LODLevelObjectPath->AsObject())->AsObject());
+		const TSharedPtr<FJsonObject> LODLevelObject = TSharedPtr<FJsonObject>(GetExportByObjectPath(LODLevelObjectPath->AsObject(), AllJsonObjects)->AsObject());
 		const TSharedPtr<FJsonObject> LODLevelObjectProperties = LODLevelObject->GetObjectField(TEXT("Properties"));
 
 		UParticleLODLevel* LOD = NewObject<UParticleLODLevel>(
@@ -57,7 +57,7 @@ void IParticleSystemImporter::CreateLODLevels(UParticleEmitter* Emitter, const T
 		Emitter->LODLevels.Add(LOD);
 
 		//
-		const TSharedPtr<FJsonObject> RequiredModuleObject = TSharedPtr<FJsonObject>(GetExportByObjectPath(LODLevelObjectProperties->GetObjectField(TEXT("RequiredModule")))->AsObject());
+		const TSharedPtr<FJsonObject> RequiredModuleObject = TSharedPtr<FJsonObject>(GetExportByObjectPath(LODLevelObjectProperties->GetObjectField(TEXT("RequiredModule")), AllJsonObjects)->AsObject());
 		UParticleModuleRequired* RequiredModule = NewObject<UParticleModuleRequired>(
 			Emitter,
 			UParticleModuleRequired::StaticClass(),
@@ -71,7 +71,7 @@ void IParticleSystemImporter::CreateLODLevels(UParticleEmitter* Emitter, const T
 		LOD->RequiredModule = RequiredModule;
 
 		//
-		const TSharedPtr<FJsonObject> TypeDataModuleObject = TSharedPtr<FJsonObject>(GetExportByObjectPath(LODLevelObjectProperties->GetObjectField(TEXT("TypeDataModule")))->AsObject());
+		const TSharedPtr<FJsonObject> TypeDataModuleObject = TSharedPtr<FJsonObject>(GetExportByObjectPath(LODLevelObjectProperties->GetObjectField(TEXT("TypeDataModule")), AllJsonObjects)->AsObject());
 		UParticleModuleTypeDataMesh* TypeDataModule = NewObject<UParticleModuleTypeDataMesh>(
 			Emitter,
 			UParticleModuleTypeDataMesh::StaticClass(),
@@ -85,7 +85,7 @@ void IParticleSystemImporter::CreateLODLevels(UParticleEmitter* Emitter, const T
 		LOD->TypeDataModule = TypeDataModule;
 
 		//
-		const TSharedPtr<FJsonObject> SpawnModuleObject = TSharedPtr<FJsonObject>(GetExportByObjectPath(LODLevelObjectProperties->GetObjectField(TEXT("SpawnModule")))->AsObject());
+		const TSharedPtr<FJsonObject> SpawnModuleObject = TSharedPtr<FJsonObject>(GetExportByObjectPath(LODLevelObjectProperties->GetObjectField(TEXT("SpawnModule")), AllJsonObjects)->AsObject());
 		UParticleModuleSpawn* SpawnModule = NewObject<UParticleModuleSpawn>(
 			Emitter,
 			UParticleModuleSpawn::StaticClass(),
@@ -121,7 +121,7 @@ void IParticleSystemImporter::CreateLODLevels(UParticleEmitter* Emitter, const T
 
 void IParticleSystemImporter::CreateModules(UParticleLODLevel* LOD, const TArray<TSharedPtr<FJsonValue>> ModulesObjectPath) {
 	for (const TSharedPtr<FJsonValue>& ModuleObjectPath : ModulesObjectPath) {
-		const TSharedPtr<FJsonObject> ModuleData = TSharedPtr<FJsonObject>(GetExportByObjectPath(ModuleObjectPath->AsObject())->AsObject());
+		const TSharedPtr<FJsonObject> ModuleData = TSharedPtr<FJsonObject>(GetExportByObjectPath(ModuleObjectPath->AsObject(), AllJsonObjects)->AsObject());
 		const TSharedPtr<FJsonObject> ModuleProperties = ModuleData->GetObjectField(TEXT("Properties"));
 
 		UClass* ModuleClass = LoadClassFromPath(ModuleData->GetStringField(TEXT("Type")), TEXT("/Script/Engine"));
