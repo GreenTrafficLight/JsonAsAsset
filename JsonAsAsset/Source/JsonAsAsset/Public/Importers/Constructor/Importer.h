@@ -260,30 +260,77 @@ protected:
 	bool HandleAssetCreation(UObject* Asset) const;
 	void SavePackage() const;
 
-	TMap<FName, FExportData> CreateExports();
-
 	/*
 	 * Handle edit changes, and add it to the content browser
 	 */
 	bool OnAssetCreation(UObject* Asset) const;
 
-	static FName GetExportNameOfSubobject(const FString& PackageIndex);
-	TArray<TSharedPtr<FJsonValue>> FilterExportsByOuter(const FString& Outer);
-	TSharedPtr<FJsonValue> GetExportByObjectPath(const TSharedPtr<FJsonObject>& Object);
+	virtual void ApplyModifications() {};
 
 	/* ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Object Serializer and Property Serializer ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ */
 public:
 	/* Function to check if an asset needs to be imported. Once imported, the asset will be set and returned. */
 	template <class T = UObject>
-	static TObjectPtr<T> DownloadWrapper(TObjectPtr<T> InObject, FString Type, FString Name, FString Path);
+	static TObjectPtr<T> DownloadWrapper(TObjectPtr<T> InObject, FString Type, const FString Name, const FString Path) {
+		const UJsonAsAssetSettings* Settings = GetDefault<UJsonAsAssetSettings>();
+
+		/* TODO: Remove this? */
+		if (Type == "Texture") Type = "Texture2D";
+
+		if (Settings->bEnableCloudServer && (
+			InObject == nullptr ||
+			Settings->AssetSettings.TextureImportSettings.bForceRedownloadTextures &&
+			Type == "Texture2D"
+			)
+			) {
+			const UObject* DefaultObject = GetClassDefaultObject(T::StaticClass());
+
+			if (DefaultObject != nullptr && !Name.IsEmpty() && !Path.IsEmpty()) {
+				bool bDownloadStatus = false;
+
+				/* Try importing the asset */
+				if (FAssetUtilities::ConstructAsset(FSoftObjectPath(Type + "'" + Path + "." + Name + "'").ToString(), Type, InObject, bDownloadStatus)) {
+					const FText AssetNameText = FText::FromString(Name);
+					const FSlateBrush* IconBrush = FSlateIconFinder::FindCustomIconBrushForClass(FindObject<UClass>(nullptr, *("/Script/Engine." + Type)), TEXT("ClassThumbnail"));
+
+					if (bDownloadStatus) {
+						AppendNotification(
+							FText::FromString("Locally Downloaded: " + Type),
+							AssetNameText,
+							2.0f,
+							IconBrush,
+							SNotificationItem::CS_Success,
+							false,
+							310.0f
+						);
+
+						GetMessageLog().Message(EMessageSeverity::Info, FText::FromString("Locally Downloaded Asset: " + Name + " (" + Type + ")"));
+					}
+					else {
+						AppendNotification(
+							FText::FromString("Download Failed: " + Type),
+							AssetNameText,
+							5.0f,
+							IconBrush,
+							SNotificationItem::CS_Fail,
+							false,
+							310.0f
+						);
+
+						GetMessageLog().Error(FText::FromString("Failed to locally download asset: " + Name + " (" + Type + ")"));
+					}
+				}
+			}
+		}
+
+		return InObject;
+	}
 
 protected:
-	void DeserializeExports(UObject* ParentAsset) const {
-		UObjectSerializer* ObjectSerializer = GetObjectSerializer();
-		ObjectSerializer->SetExportForDeserialization(JsonObject, ParentAsset);
-		ObjectSerializer->ParentAsset = ParentAsset;
+	void DeserializeExports(UObject* Parent, bool bCreateObjects = true);
 
-		ObjectSerializer->DeserializeExports(AllJsonObjects);
-	};
+	FUObjectExportContainer GetExportContainer() const {
+		return GetObjectSerializer()->GetPropertySerializer()->ExportsContainer;
+	}
 	/* ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Object Serializer and Property Serializer ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ */
 };
