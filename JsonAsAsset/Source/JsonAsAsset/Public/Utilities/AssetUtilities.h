@@ -24,9 +24,7 @@ public:
 	static bool ConstructAsset(const FString& Path, const FString& Type, TObjectPtr<T>& OutObject, bool& bSuccess);
 
 	static bool Construct_TypeTexture(const FString& Path, const FString& FetchPath, UTexture*& OutTexture);
-	static bool Construct_TypeStreamableRenderAsset(const FString& Path, UStaticMesh*& OutStaticMesh);
+	static bool Construct_TypeStreamableRenderAsset(const FString& Path, const FString& Type, UObject*& OutMesh);
 
-	static void CreatePlugin(FString PluginName);
-
-	static const TSharedPtr<FJsonObject> API_RequestExports(const FString& Path);
+	static TSharedPtr<FJsonObject> API_RequestExports(const FString& Path, const FString& FetchPath = "/api/export?raw=true&path=");
 };
