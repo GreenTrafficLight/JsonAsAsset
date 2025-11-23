@@ -9,7 +9,7 @@ class JSONASASSET_API USerializerContainer {
 public:
 	/* Constructors ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ */
 	USerializerContainer()
-		: Package(nullptr), OutermostPkg(nullptr), PropertySerializer(nullptr), GObjectSerializer(nullptr) {}
+		: Package(nullptr), OutermostPkg(nullptr), PropertySerializer(nullptr), ObjectSerializer(nullptr) {}
 
 	/* Importer Constructor */
 	explicit USerializerContainer(UPackage* Package, UPackage* OutermostPkg);
@@ -21,10 +21,11 @@ public:
 
 	/* ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Object Serializer and Property Serializer ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ */
 public:
-	FORCEINLINE UObjectSerializer* GetObjectSerializer() const { return GObjectSerializer; }
+	FORCEINLINE UObjectSerializer* GetObjectSerializer() const;
+	FORCEINLINE UPropertySerializer* GetPropertySerializer() const;
 
 protected:
 	UPropertySerializer* PropertySerializer;
-	UObjectSerializer* GObjectSerializer;
+	UObjectSerializer* ObjectSerializer;
 	/* ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Object Serializer and Property Serializer ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ */
 };
