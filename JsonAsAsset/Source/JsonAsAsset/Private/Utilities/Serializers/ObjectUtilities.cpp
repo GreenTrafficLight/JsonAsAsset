@@ -1,6 +1,13 @@
-// Copyright Epic Games, Inc. All Rights Reserved.
+/* Copyright JsonAsAsset Contributors 2024-2025 */
 
 #include "Utilities/Serializers/ObjectUtilities.h"
+#include "Utilities/Compatibility.h"
+
+#if ENGINE_UE5
+#include "AnimGraphNode_Base.h"
+#elif !UE4_18_BELOW
+#include "AnimGraph/Classes/AnimGraphNode_Base.h"
+#endif
 
 #include "Utilities/Serializers/PropertyUtilities.h"
 #include "UObject/Package.h"
@@ -11,7 +18,7 @@ PRAGMA_DISABLE_OPTIMIZATION
 
 /* ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ */
 
-UObjectSerializer::UObjectSerializer() : ParentAsset(nullptr), PropertySerializer(nullptr) {
+UObjectSerializer::UObjectSerializer() : Parent(nullptr), PropertySerializer(nullptr) {
 }
 
 void UObjectSerializer::SetupExports(const TArray<TSharedPtr<FJsonValue>>& InObjects) {
@@ -40,13 +47,12 @@ void UObjectSerializer::SetExportForDeserialization(const TSharedPtr<FJsonObject
 	ConstructedObjects.Add(JsonObject->GetStringField(TEXT("Name")), Object);
 }
 
-void UObjectSerializer::DeserializeExports(TArray<TSharedPtr<FJsonValue>> InExports) {
+void UObjectSerializer::DeserializeExports(TArray<TSharedPtr<FJsonValue>> InExports, const bool bCreateObjects) {
 	PropertySerializer->ExportsContainer.Empty();
 
-	TMap<TSharedPtr<FJsonObject>, UObject*> ExportsMap;
 	int Index = -1;
-
-	for (TSharedPtr<FJsonValue> Object : InExports) {
+	
+	for (const TSharedPtr<FJsonValue> Object : InExports) {
 		Index++;
 
 		TSharedPtr<FJsonObject> ExportObject = Object->AsObject();
@@ -56,26 +62,30 @@ void UObjectSerializer::DeserializeExports(TArray<TSharedPtr<FJsonValue>> InExpo
 
 		FString Name = ExportObject->GetStringField(TEXT("Name"));
 		FString Type = ExportObject->GetStringField(TEXT("Type"));
-
+		
 		/* Check if it's not supposed to be deserialized */
 		if (ExportsToNotDeserialize.Contains(Name)) continue;
-		if (Type == "BodySetup" || Type == "NavCollision") continue;
+		if (Type == "NavCollision") continue;
 
 		FString Outer = ExportObject->GetStringField(TEXT("Outer"));
-
+		
 		/* Add it to the referenced objects */
-		PropertySerializer->ExportsContainer.Exports.Add(FUObjectExport(FName(*Name), FName(*Type), FName(*Outer), ExportObject, nullptr, ParentAsset, Index));
+		PropertySerializer->ExportsContainer.Exports.Add(FUObjectExport(FName(*Name), FName(*Type), FName(*Outer), ExportObject, nullptr, Parent, Index));
 	}
 
-	for (FUObjectExport& Export : PropertySerializer->ExportsContainer.Exports) {
-		DeserializeExport(Export, ExportsMap);
-	}
+	if (bCreateObjects) {
+		TMap<TSharedPtr<FJsonObject>, UObject*> ExportsMap;
+		
+		for (FUObjectExport& Export : PropertySerializer->ExportsContainer.Exports) {
+			DeserializeExport(Export, ExportsMap);
+		}
 
-	for (const auto Pair : ExportsMap) {
-		TSharedPtr<FJsonObject> Properties = Pair.Key;
-		UObject* Object = Pair.Value;
+		for (const auto Pair : ExportsMap) {
+			TSharedPtr<FJsonObject> Properties = Pair.Key;
+			UObject* Object = Pair.Value;
 
-		DeserializeObjectProperties(Properties, Object);
+			DeserializeObjectProperties(Properties, Object);
+		}
 	}
 }
 
@@ -136,7 +146,7 @@ void UObjectSerializer::DeserializeExport(FUObjectExport& Export, TMap<TSharedPt
 
 	if (PathsToNotDeserialize.Contains(Outer + "." + Name)) return;
 	if (ObjectOuter == nullptr) {
-		ObjectOuter = ParentAsset;
+		ObjectOuter = Parent;
 	}
 
 	UObject* NewUObject = NewObject<UObject>(ObjectOuter, Class, FName(*Name));
@@ -174,7 +184,30 @@ void UObjectSerializer::DeserializeObjectProperties(const TSharedPtr<FJsonObject
 			const TSharedPtr<FJsonValue>& ValueObject = Properties->Values.FindChecked(PropertyName);
 
 			if (Property->ArrayDim == 1 || ValueObject->Type == EJson::Array) {
-				PropertySerializer->DeserializePropertyValue(Property, ValueObject.ToSharedRef(), PropertyValue);
+				PropertySerializer->DeserializePropertyValue(Property, ValueObject.ToSharedRef(), PropertyValue, Object);
+			}
+		}
+	}
+}
+
+void UObjectSerializer::DeserializeObjectProperties(const TSharedPtr<FJsonObject>& Properties, UObject* Object, UObject* Owner) const {
+	if (Object == nullptr) return;
+
+	const UClass* ObjectClass = Object->GetClass();
+
+	for (UProperty* Property = ObjectClass->PropertyLink; Property; Property = Property->PropertyLinkNext) {
+		const FString PropertyName = Property->GetName();
+
+		if (!PropertySerializer->ShouldDeserializeProperty(Property)) continue;
+
+		void* PropertyValue = Property->ContainerPtrToValuePtr<void>(Object);
+		const bool HasHandledProperty = PassthroughPropertyHandler(Property, PropertyName, PropertyValue, Properties, PropertySerializer);
+
+		if (Properties->HasField(PropertyName) && !HasHandledProperty && PropertyName != "LODParentPrimitive") {
+			const TSharedPtr<FJsonValue>& ValueObject = Properties->Values.FindChecked(PropertyName);
+
+			if (Property->ArrayDim == 1 || ValueObject->Type == EJson::Array) {
+				PropertySerializer->DeserializePropertyValue(Property, ValueObject.ToSharedRef(), PropertyValue, Owner);
 			}
 		}
 	}

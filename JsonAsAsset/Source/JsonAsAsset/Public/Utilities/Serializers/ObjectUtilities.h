@@ -3,7 +3,6 @@
 #pragma once
 
 #include "UObject/Object.h"
-#include "Json.h"
 #include "Containers/ObjectExport.h"
 #include "ObjectUtilities.generated.h"
 
@@ -21,24 +20,25 @@ public:
 	FORCEINLINE UPropertySerializer* GetPropertySerializer() const { return PropertySerializer; }
 
 	void DeserializeObjectProperties(const TSharedPtr<FJsonObject>& Properties, UObject* Object) const;
+	void DeserializeObjectProperties(const TSharedPtr<FJsonObject>& Properties, UObject* Object, UObject* Owner) const;
 
 	void SetExportForDeserialization(const TSharedPtr<FJsonObject>& JsonObject, UObject* Object);
-	void DeserializeExports(TArray<TSharedPtr<FJsonValue>> InExports);
+	void DeserializeExports(TArray<TSharedPtr<FJsonValue>> InExports, bool bCreateObjects = true);
 	void DeserializeExport(FUObjectExport& Export, TMap<TSharedPtr<FJsonObject>, UObject*>& ExportsMap);
 
 	UPROPERTY()
-		UObject* ParentAsset;
+	UObject* Parent;
 
 	UPROPERTY()
-		TMap<FString, UObject*> ConstructedObjects;
+	TMap<FString, UObject*> ConstructedObjects;
 
 	UPROPERTY()
-		UPropertySerializer* PropertySerializer;
+	UPropertySerializer* PropertySerializer;
 
 	TArray<TSharedPtr<FJsonValue>> Exports;
 
 	UPROPERTY()
-		TArray<FString> ExportsToNotDeserialize;
+	TArray<FString> ExportsToNotDeserialize;
 
 	TArray<FString> PathsToNotDeserialize;
 };
