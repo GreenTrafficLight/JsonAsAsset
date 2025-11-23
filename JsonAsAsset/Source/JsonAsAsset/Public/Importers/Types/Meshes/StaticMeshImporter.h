@@ -14,7 +14,7 @@ public:
 		IImporter(FileName, FilePath, JsonObject, Package, OutermostPkg) {
 	}
 
-	bool ImportStaticMesh(UStaticMesh*& OutStaticMesh, TArray<uint8>& Data, const TSharedPtr<FJsonObject>& Properties) const;
-	bool ImportSkeletalMesh(USkeletalMesh*& OutSkeletalMesh, TArray<uint8>& Data, const TSharedPtr<FJsonObject>& Properties) const;
+	bool ImportStaticMesh(UStaticMesh*& OutStaticMesh, TArray<uint8>& Data, const TSharedPtr<FJsonObject>& Properties);
+	bool ImportSkeletalMesh(USkeletalMesh*& OutSkeletalMesh, TArray<uint8>& Data);
 	bool ImportStaticMesh_Data(UStaticMesh* InStaticMesh, const TSharedPtr<FJsonObject>& Properties) const;
 };
