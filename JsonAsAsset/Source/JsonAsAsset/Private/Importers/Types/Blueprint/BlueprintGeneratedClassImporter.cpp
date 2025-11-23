@@ -20,47 +20,65 @@
 #include "K2Node_Event.h"
 
 bool IBlueprintGeneratedClassImporter::Import() {
-	const TSharedPtr<FJsonObject> SuperStruct = JsonObject->GetObjectField(TEXT("SuperStruct"));
-	UClass* ParentClass = LoadClass(SuperStruct);
-
 	UBlueprint* Blueprint = nullptr;
 	Blueprint = FindObject<UBlueprint>(Package, *AssetName);
 	if (!Blueprint) {
-		Blueprint = FKismetEditorUtilities::CreateBlueprint(ParentClass, Package, FName(*AssetName), BPTYPE_Normal, UBlueprint::StaticClass(), UBlueprintGeneratedClass::StaticClass());
+		const TSharedPtr<FJsonObject> SuperStruct = JsonObject->GetObjectField(TEXT("SuperStruct"));
+		UClass* ParentClass = LoadClass(SuperStruct);
+		/*if (!ParentClass) {
+			TObjectPtr<UObject> Object;
+			IImporter* Importer = new IImporter();
+			Importer->LoadObject(&SuperStruct, Object);
+			if (!Object.IsValid()) {
+				return false;
+			}
+			ParentClass = Object.Get()->GetClass();
+		}*/
 
-		// If it inherit from an actor
-		if (ParentClass && ParentClass->IsChildOf(AActor::StaticClass()))
-		{
-			const TSharedPtr<FJsonObject> SimpleConstructionScriptObject = TSharedPtr<FJsonObject>(GetExportByObjectPath(JsonObject->GetObjectField(TEXT("Properties"))->GetObjectField(TEXT("SimpleConstructionScript")))->AsObject());
+		if (ParentClass) {
+			Blueprint = FKismetEditorUtilities::CreateBlueprint(ParentClass, Package, FName(*AssetName), BPTYPE_Normal, UBlueprint::StaticClass(), UBlueprintGeneratedClass::StaticClass());
+			GetObjectSerializer()->SetupExports(AllJsonObjects);
 
-			// Root
-			USCS_Node* RootNode = Blueprint->SimpleConstructionScript->GetDefaultSceneRootNode();
-			const TArray<TSharedPtr<FJsonValue>> RootNodesObject = SimpleConstructionScriptObject->GetObjectField(TEXT("Properties"))->GetArrayField(TEXT("RootNodes"));
-			HandleSimpleConstructionScript(Blueprint, RootNode, RootNodesObject, true);
-		}
+			// If it inherit from an actor
+			if (ParentClass->IsChildOf(AActor::StaticClass()))
+			{
+				const TSharedPtr<FJsonObject> SimpleConstructionScriptObject = TSharedPtr<FJsonObject>(GetExportByObjectPath(JsonObject->GetObjectField(TEXT("Properties"))->GetObjectField(TEXT("SimpleConstructionScript")), AllJsonObjects)->AsObject());
 
-		// Create the variables by looping the Children array an checking if it's a StrProperty, BoolProperty
-		// Create them after creating the components to avoid them re-creating it
-		CreateVariables(Blueprint, JsonObject->GetStringField(TEXT("Name")), JsonObject->GetArrayField(TEXT("Children")));
+				// Root
+				USCS_Node* RootNode = Blueprint->SimpleConstructionScript->GetDefaultSceneRootNode();
+				const TArray<TSharedPtr<FJsonValue>> RootNodesObject = SimpleConstructionScriptObject->GetObjectField(TEXT("Properties"))->GetArrayField(TEXT("RootNodes"));
+				HandleSimpleConstructionScript(Blueprint, RootNode, RootNodesObject, true);
 
-		ReadFuncMap(Blueprint);
+				const TSharedPtr<FJsonObject> InheritableComponentHandlerExport = TSharedPtr<FJsonObject>(GetExportByObjectPath(JsonObject->GetObjectField(TEXT("Properties"))->GetObjectField(TEXT("InheritableComponentHandler")), AllJsonObjects)->AsObject());
+				if (InheritableComponentHandlerExport.IsValid()) {
+					HandleInheritableComponentHandler(Blueprint, InheritableComponentHandlerExport);
+				}
+			}
 
-		const TSharedPtr<FJsonObject> ClassDefaultObjectExport = TSharedPtr<FJsonObject>(GetExportByObjectPath(JsonObject->GetObjectField(TEXT("ClassDefaultObject")))->AsObject());
-		const TSharedPtr<FJsonObject> ClassDefaultObjectProperties = ClassDefaultObjectExport->GetObjectField(TEXT("Properties"));
-		if (ClassDefaultObjectProperties.IsValid()) {
-			UObject* ClassDefaultObject = Blueprint->GeneratedClass->GetDefaultObject();
-			GetObjectSerializer()->DeserializeObjectProperties(RemovePropertiesShared(ClassDefaultObjectProperties, {
-				"UberGraphFrame",
-			}), ClassDefaultObject);
+			// Create the variables by looping the Children array an checking if it's a StrProperty, BoolProperty
+			// Create them after creating the components to avoid them re-creating it
+			CreateVariables(Blueprint, JsonObject->GetStringField(TEXT("Name")), JsonObject->GetArrayField(TEXT("Children")));
+
+			ReadFuncMap(Blueprint);
+
+			const TSharedPtr<FJsonObject> ClassDefaultObjectExport = TSharedPtr<FJsonObject>(GetExportByObjectPath(JsonObject->GetObjectField(TEXT("ClassDefaultObject")), AllJsonObjects)->AsObject());
+			const TSharedPtr<FJsonObject> ClassDefaultObjectProperties = ClassDefaultObjectExport->GetObjectField(TEXT("Properties"));
+			if (ClassDefaultObjectProperties.IsValid()) {
+				UObject* ClassDefaultObject = Blueprint->GeneratedClass->GetDefaultObject();
+				GetObjectSerializer()->DeserializeObjectProperties(RemovePropertiesShared(ClassDefaultObjectProperties, {
+					"UberGraphFrame",
+				}), ClassDefaultObject);
+			}
 		}
 	}
+	FKismetEditorUtilities::CompileBlueprint(Blueprint);
 
-	return true;
+	return OnAssetCreation(Blueprint);
 }
 
 void IBlueprintGeneratedClassImporter::CreateVariables(UBlueprint* BP, FString OuterName, const TArray<TSharedPtr<FJsonValue>> ChildrensObjectPath, UEdGraph* FunctionGraph) {
 	for (const TSharedPtr<FJsonValue>& ChildrenObjectPath : ChildrensObjectPath) {
-		const TSharedPtr<FJsonObject> ChildrenExport = TSharedPtr<FJsonObject>(GetExportByObjectPath(ChildrenObjectPath->AsObject())->AsObject());
+		const TSharedPtr<FJsonObject> ChildrenExport = TSharedPtr<FJsonObject>(GetExportByObjectPath(ChildrenObjectPath->AsObject(), AllJsonObjects)->AsObject());
 
 		const FString ChildrenOuterName = ChildrenExport->GetStringField(TEXT("Outer"));
 		if (!ChildrenOuterName.Equals(OuterName)) {
@@ -162,7 +180,7 @@ FEdGraphPinType IBlueprintGeneratedClassImporter::GetPinType(const TSharedPtr<FJ
 	if (Type == TEXT("ArrayProperty"))
 	{
 		// Arrays have an Inner property that describes element type
-		const TSharedPtr<FJsonObject> InnerExport = TSharedPtr<FJsonObject>(GetExportByObjectPath(Export->GetObjectField(TEXT("Inner")))->AsObject());
+		const TSharedPtr<FJsonObject> InnerExport = TSharedPtr<FJsonObject>(GetExportByObjectPath(Export->GetObjectField(TEXT("Inner")), AllJsonObjects)->AsObject());
 
 		if (InnerExport.IsValid()) {
 			PinType = GetPinType(InnerExport);
@@ -227,7 +245,7 @@ void IBlueprintGeneratedClassImporter::ReadFuncMap(UBlueprint* BP) {
 	const TSharedPtr<FJsonObject> FunctionsObjectPath = JsonObject->GetObjectField(TEXT("FuncMap"));
 
 	for (const auto& Pair : FunctionsObjectPath->Values) {
-		const TSharedPtr<FJsonObject> FunctionExport = TSharedPtr<FJsonObject>(GetExportByObjectPath(Pair.Value->AsObject())->AsObject());
+		const TSharedPtr<FJsonObject> FunctionExport = TSharedPtr<FJsonObject>(GetExportByObjectPath(Pair.Value->AsObject(), AllJsonObjects)->AsObject());
 
 		const FString FunctionName = FunctionExport->GetStringField(TEXT("Name"));
 
@@ -287,7 +305,7 @@ void IBlueprintGeneratedClassImporter::HandleSimpleConstructionScript(UBlueprint
 	USimpleConstructionScript* SCS = BP->SimpleConstructionScript;
 
 	for (const TSharedPtr<FJsonValue>& NodeObject : NodesObject) {
-		const TSharedPtr<FJsonObject> SCSNodeExport = TSharedPtr<FJsonObject>(GetExportByObjectPath(NodeObject->AsObject())->AsObject());
+		const TSharedPtr<FJsonObject> SCSNodeExport = TSharedPtr<FJsonObject>(GetExportByObjectPath(NodeObject->AsObject(), AllJsonObjects)->AsObject());
 		const TSharedPtr<FJsonObject> SCSNodePropertiesObject = SCSNodeExport->GetObjectField(TEXT("Properties"));
 
 		UClass* ComponentClass = LoadClass(SCSNodePropertiesObject->GetObjectField(TEXT("ComponentClass")));
@@ -312,26 +330,46 @@ void IBlueprintGeneratedClassImporter::HandleSimpleConstructionScript(UBlueprint
 
 		FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(BP);
 
-		if (SCSNodePropertiesObject->HasField(TEXT("ChildNodes")))
-		{
+		if (SCSNodePropertiesObject->HasField(TEXT("ChildNodes"))) {
 			const TArray<TSharedPtr<FJsonValue>> ChildNodesObject = SCSNodePropertiesObject->GetArrayField("ChildNodes");
 			HandleSimpleConstructionScript(BP, SCSNode, ChildNodesObject, false);
-
 		}
 
 		UE_LOG(LogTemp, Log, TEXT("TEST"));
 	}
 }
 
+void IBlueprintGeneratedClassImporter::HandleInheritableComponentHandler(UBlueprint* BP, const TSharedPtr<FJsonObject> InheritableComponentHandlerExport) {
+	TArray<USCS_Node*> AllNodes;
+	GetAllSCSNodes(BP, AllNodes);
+	
+	const TSharedPtr<FJsonObject> PropertiesDataObject = InheritableComponentHandlerExport->GetObjectField(TEXT("Properties"));
+	const TArray<TSharedPtr<FJsonValue>> RecordsData = PropertiesDataObject->GetArrayField(TEXT("Records"));
+	for (const TSharedPtr<FJsonValue>& RecordData : RecordsData) {
+		const TSharedPtr<FJsonObject> RecorDataObject = RecordData->AsObject();
+		const TSharedPtr<FJsonObject> ComponentClassData = RecorDataObject->GetObjectField(TEXT("ComponentClass"));
+		const TSharedPtr<FJsonObject> ComponentKeyData = RecorDataObject->GetObjectField(TEXT("ComponentKey"));
+
+		USCS_Node* SCSNode = FindSCSNodeByName(AllNodes, *ComponentKeyData->GetStringField(TEXT("SCSVariableName")));
+		if (!SCSNode) {
+			UE_LOG(LogTemp, Warning, TEXT("SCS Node of name '%s' not found"), *ComponentKeyData->GetStringField(TEXT("SCSVariableName")));
+			continue;
+		}
+
+		UActorComponent* ComponentTemplate = SCSNode->ComponentTemplate;
+
+		const TSharedPtr<FJsonObject> ComponentTemplateObjectPath = RecorDataObject->GetObjectField(TEXT("ComponentTemplate"));
+		ReadComponentTemplate(BP, ComponentTemplate, ComponentTemplateObjectPath);
+	}
+}
+
 void IBlueprintGeneratedClassImporter::ReadComponentTemplate(UBlueprint* BP, UActorComponent* ComponentTemplate, const TSharedPtr<FJsonObject> ComponentTemplateObjectPath) {
-	const TSharedPtr<FJsonObject> ComponentTemplateExport = TSharedPtr<FJsonObject>(GetExportByObjectPath(ComponentTemplateObjectPath)->AsObject());
+	const TSharedPtr<FJsonObject> ComponentTemplateExport = TSharedPtr<FJsonObject>(GetExportByObjectPath(ComponentTemplateObjectPath, AllJsonObjects)->AsObject());
 	const TSharedPtr<FJsonObject> ComponentTemplateProperties = ComponentTemplateExport->GetObjectField(TEXT("Properties"));
 
 	UE_LOG(LogTemp, Log, TEXT("%s"), *ComponentTemplate->GetName());
 	ComponentTemplate->Rename(*ComponentTemplateExport->GetStringField(TEXT("Name")), nullptr, REN_DoNotDirty | REN_DontCreateRedirectors | REN_ForceNoResetLoaders);
 	UE_LOG(LogTemp, Log, TEXT("%s"), *ComponentTemplate->GetName());
 
-	//if (ComponentTemplateObject->GetStringField(TEXT("Type")) == "StaticMeshComponent") {
 	GetObjectSerializer()->DeserializeObjectProperties(ComponentTemplateProperties, ComponentTemplate);
-	//}
 }

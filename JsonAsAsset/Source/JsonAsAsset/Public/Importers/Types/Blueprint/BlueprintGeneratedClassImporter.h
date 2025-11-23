@@ -29,6 +29,8 @@ private:
 
 	void HandleSimpleConstructionScript(UBlueprint* BP, USCS_Node* Node, const TArray<TSharedPtr<FJsonValue>> NodesObject, bool bIsRoot);
 
+	void HandleInheritableComponentHandler(UBlueprint* BP, const TSharedPtr<FJsonObject> InheritableComponentHandlerExport);
+
 	void ReadComponentTemplate(UBlueprint* BP, UActorComponent* ComponentTemplate, const TSharedPtr<FJsonObject> ComponentTemplateObjectPath);
 };
 
