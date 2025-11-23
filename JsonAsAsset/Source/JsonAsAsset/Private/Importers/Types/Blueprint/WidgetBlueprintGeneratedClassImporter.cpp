@@ -40,10 +40,10 @@ bool IWidgetBlueprintGeneratedClassImporter::Import() {
 		Blueprint = FKismetEditorUtilities::CreateBlueprint(ParentClass, Package, FName(*AssetName), BPTYPE_Normal, UWidgetBlueprint::StaticClass(), UBlueprintGeneratedClass::StaticClass());
 		UWidgetBlueprint* WidgetBP = Cast<UWidgetBlueprint>(Blueprint);
 
-		const TSharedPtr<FJsonObject> WidgetTree = TSharedPtr<FJsonObject>(GetExportByObjectPath(JsonObject->GetObjectField(TEXT("Properties"))->GetObjectField(TEXT("WidgetTree")))->AsObject());
+		const TSharedPtr<FJsonObject> WidgetTree = TSharedPtr<FJsonObject>(GetExportByObjectPath(JsonObject->GetObjectField(TEXT("Properties"))->GetObjectField(TEXT("WidgetTree")), AllJsonObjects)->AsObject());
 
 		// Get the Root Widget from the Widget Tree Json Object
-		const TSharedPtr<FJsonObject> RootWidgetJsonObject = TSharedPtr<FJsonObject>(GetExportByObjectPath(WidgetTree->GetObjectField(TEXT("Properties"))->GetObjectField(TEXT("RootWidget")))->AsObject());
+		const TSharedPtr<FJsonObject> RootWidgetJsonObject = TSharedPtr<FJsonObject>(GetExportByObjectPath(WidgetTree->GetObjectField(TEXT("Properties"))->GetObjectField(TEXT("RootWidget")), AllJsonObjects)->AsObject());
 		// Create the root Widget and put it into the Widget Blueprint
 		UCanvasPanel* RootWidget = WidgetBP->WidgetTree->ConstructWidget<UCanvasPanel>(UCanvasPanel::StaticClass(), FName(*RootWidgetJsonObject->GetStringField(TEXT("Name"))));
 		WidgetBP->WidgetTree->RootWidget = RootWidget;
@@ -67,9 +67,9 @@ void IWidgetBlueprintGeneratedClassImporter::HandlePanelSlots(UWidgetBlueprint* 
 	// For each slot in the panel
 	for (const TSharedPtr<FJsonValue>& Slot : Slots) {
 		// Get the object data of the panel
-		const TSharedPtr<FJsonObject> PanelSlot = TSharedPtr<FJsonObject>(GetExportByObjectPath(Slot->AsObject())->AsObject());
+		const TSharedPtr<FJsonObject> PanelSlot = TSharedPtr<FJsonObject>(GetExportByObjectPath(Slot->AsObject(), AllJsonObjects)->AsObject());
 		// Get the object data of the slot
-		const TSharedPtr<FJsonObject> SlotContent = TSharedPtr<FJsonObject>(GetExportByObjectPath(PanelSlot->GetObjectField(TEXT("Properties"))->GetObjectField(TEXT("Content")))->AsObject());
+		const TSharedPtr<FJsonObject> SlotContent = TSharedPtr<FJsonObject>(GetExportByObjectPath(PanelSlot->GetObjectField(TEXT("Properties"))->GetObjectField(TEXT("Content")), AllJsonObjects)->AsObject());
 		const TSharedPtr<FJsonObject> SlotContentProperties = SlotContent->GetObjectField(TEXT("Properties"));
 
 		UClass* WidgetClass = GetWidgetClass(SlotContent);
