@@ -2,10 +2,6 @@
 Intermediate/*
 Binaries/*
 
-# Particle System Importing is not finalized ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-Source/JsonAsAsset/Public/Importers/Types/Cascade/*
-Source/JsonAsAsset/Private/Importers/Types/Cascade/*
-
 # NotForLicensees ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 /Source/JsonAsAsset/Private/NotForLicensees/*
 /Source/JsonAsAsset/Public/NotForLicensees
