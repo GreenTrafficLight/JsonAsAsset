@@ -8,8 +8,13 @@
 #include "UObject/TextProperty.h"
 
 /* Struct Serializers */
+#include "Constraint.h"
+#include "Distributions.h"
 #include "MovieSceneSection.h"
+#include "Distributions/DistributionFloat.h"
+#include "Distributions/DistributionVector.h"
 #include "Engine/FontFace.h"
+#include "Utilities/CookieUtilities.h"
 #include "Utilities/Serializers/Structs/DateTimeSerializer.h"
 #include "Utilities/Serializers/Structs/FallbackStructSerializer.h"
 #include "Utilities/Serializers/Structs/TimeSpanSerializer.h"
@@ -18,15 +23,15 @@ DECLARE_LOG_CATEGORY_CLASS(LogJsonAsAssetPropertySerializer, Error, Log);
 PRAGMA_DISABLE_OPTIMIZATION
 
 UPropertySerializer::UPropertySerializer() {
-	this->FallbackStructSerializer = MakeShared<FFallbackStructSerializer>(this);
+	FallbackStructSerializer = MakeShared<FFallbackStructSerializer>(this);
 
 	UScriptStruct* DateTimeStruct = FindObject<UScriptStruct>(nullptr, TEXT("/Script/CoreUObject.DateTime"));
 	UScriptStruct* TimespanStruct = FindObject<UScriptStruct>(nullptr, TEXT("/Script/CoreUObject.TimeSpan"));
 	check(DateTimeStruct);
 	check(TimespanStruct);
 
-	this->StructSerializers.Add(DateTimeStruct, MakeShared<FDateTimeSerializer>());
-	this->StructSerializers.Add(TimespanStruct, MakeShared<FTimeSpanSerializer>());
+	StructSerializers.Add(DateTimeStruct, MakeShared<FDateTimeSerializer>());
+	StructSerializers.Add(TimespanStruct, MakeShared<FTimeSpanSerializer>());
 }
 
 void UPropertySerializer::DeserializePropertyValue(FProperty* Property, const TSharedRef<FJsonValue>& JsonValue, void* OutValue) {
@@ -156,22 +161,25 @@ void UPropertySerializer::DeserializePropertyValue(FProperty* Property, const TS
 				Importer->SetParent(ObjectSerializer->Parent);
 				Importer->LoadExport(&JsonValueAsObject, Object);
 
-				if (Object != nullptr && !Object.Get()->IsA(UActorComponent::StaticClass())) {
-					ObjectProperty->SetObjectPropertyValue(OutValue, Object);
-				}
-
 				if (Object != nullptr) {
-					/* Get the export */
-					if (TSharedPtr<FJsonObject> Export = GetExport(JsonValueAsObject.Get(), ObjectSerializer->Exports)) {
-						if (Export->HasField(TEXT("Properties")) && ObjectSerializer->Parent != nullptr && Export->GetStringField(TEXT("Outer")) == ObjectSerializer->Parent->GetName()) {
-							TSharedPtr<FJsonObject> Properties = Export->GetObjectField(TEXT("Properties"));
+					if (!Object.Get()->IsA(UActorComponent::StaticClass())) {
+						ObjectProperty->SetObjectPropertyValue(OutValue, Object);
+					}
 
-							if (Export->HasField(TEXT("LODData"))) {
-								Properties->SetArrayField(TEXT("LODData"), Export->GetArrayField(TEXT("LODData")));
-							}
-							
-							ObjectSerializer->DeserializeObjectProperties(Properties, Object);
+					FUObjectExport TargetExport = ExportsContainer.GetExportByObjectPath(JsonValueAsObject);
+						
+					if (TargetExport.IsJsonValid()) {
+						FUObjectJsonValueExport Properties = TargetExport.GetObject(TEXT("Properties"));
+
+						if (TargetExport.Has(TEXT("LODData"))) {
+							Properties.SetArray(TEXT("LODData"), TargetExport.GetArray(TEXT("LODData")));
 						}
+							
+						ObjectSerializer->DeserializeObjectProperties(Properties.JsonObject, Object);
+					}
+
+					if (UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(Object)) {
+						StaticMeshComponent->PostEditImport();
 					}
 				}
 			}
@@ -358,7 +366,6 @@ void UPropertySerializer::DeserializePropertyValue(FProperty* Property, const TS
 
 		if (StructProperty->Struct == FFontData::StaticStruct()) {
 			FFontData* FontData = static_cast<FFontData*>(OutValue);
-
 			TSharedPtr<FJsonObject> JsonObject = NewJsonValue->AsObject();
 			
 			if (JsonObject->HasField(TEXT("LocalFontFaceAsset"))) {
@@ -414,6 +421,19 @@ void UPropertySerializer::DeserializePropertyValue(FProperty* Property, const TS
 			}
 		}
 #endif
+
+		/* If there's a missing distribution, create it from the lookup table */
+		if (IsStructPropertyADistribution(StructProperty)) {
+			if (FRawDistribution* RawDistribution = static_cast<FRawDistribution*>(OutValue)) {
+				const bool IsFloat = IsFloatDistribution(StructProperty);
+
+				if (!GetDistribution(RawDistribution, IsFloat)) {
+					if (UDistribution* NewDistribution = DecookDistribution(ObjectSerializer->Parent, *RawDistribution, IsFloat)) {
+						SetDistribution(RawDistribution, NewDistribution, IsFloat);
+					}
+				}
+			}
+		}
 	}
 	else if (const FByteProperty* ByteProperty = CastField<const FByteProperty>(Property)) {
 		/* If we have a string provided, make sure Enum is not null */
@@ -517,11 +537,11 @@ void UPropertySerializer::DeserializePropertyValue(FProperty* Property, const TS
 void UPropertySerializer::DisablePropertySerialization(const UStruct* Struct, const FName PropertyName) {
 	FProperty* Property = Struct->FindPropertyByName(PropertyName);
 	checkf(Property, TEXT("Cannot find Property %s in Struct %s"), *PropertyName.ToString(), *Struct->GetPathName());
-	this->BlacklistedProperties.Add(Property);
+	BlacklistedProperties.Add(Property);
 }
 
 void UPropertySerializer::AddStructSerializer(UScriptStruct* Struct, const TSharedPtr<FStructSerializer>& Serializer) {
-	this->StructSerializers.Add(Struct, Serializer);
+	StructSerializers.Add(Struct, Serializer);
 }
 
 bool UPropertySerializer::ShouldDeserializeProperty(FProperty* Property) const {

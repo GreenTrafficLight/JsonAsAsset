@@ -1,5 +1,6 @@
 /* Copyright JsonAsAsset Contributors 2024-2026 */
 
+using System;
 using UnrealBuildTool;
 
 /* NOTE: Please make sure to put UE5 only modules in the #if statement below, we want UE4 and UE5 compatibility */
@@ -7,6 +8,8 @@ public class JsonAsAsset : ModuleRules {
 	public JsonAsAsset(ReadOnlyTargetRules Target) : base(Target)  {
 		PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
 		
+		var bIsLinux = Target.Platform == UnrealTargetPlatform.Linux;
+
 #if UE_5_0_OR_LATER
 	    /* Unreal Engine 5 and later */
 	    CppStandard = CppStandardVersion.Cpp20;
@@ -71,5 +74,12 @@ public class JsonAsAsset : ModuleRules {
 			"ToolWidgets"
 #endif
 		});
+		
+		if (!bIsLinux) {
+			PrivateDependencyModuleNames.AddRange(new[] {
+				"Detex",
+				"NVTT"
+			});
+		}
 	}
 }
