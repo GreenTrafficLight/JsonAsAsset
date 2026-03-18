@@ -11,4 +11,5 @@ public:
 	static bool ReadExportsAndImport(const TArray<TSharedPtr<FJsonValue>>& Exports, const FString& File, IImporter*& OutImporter, bool HideNotifications = false);
 	static IImporter* ReadExportAndImport(FUObjectExportContainer& Container, FUObjectExport& Export, FString File, bool HideNotifications = false);
 	static IImporter* ImportReference(const FString& File);
+	static void ParsePackageIndex(const TSharedPtr<FJsonObject>* PackageIndex, FString& OutType, FString& OutName, FString& OutPath, FString& OutOuter);
 };

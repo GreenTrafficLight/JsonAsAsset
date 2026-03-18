@@ -170,3 +170,35 @@ IImporter* IImportReader::ImportReference(const FString& File) {
 	
 	return Importer;
 }
+
+void IImportReader::ParsePackageIndex(const TSharedPtr<FJsonObject>* PackageIndex, FString& OutType, FString& OutName, FString& OutPath, FString& OutOuter) {
+	PackageIndex->Get()->GetStringField(TEXT("ObjectName")).Split("'", &OutType, &OutName);
+
+	OutPath = PackageIndex->Get()->GetStringField(TEXT("ObjectPath"));
+	OutPath.Split(".", &OutPath, nullptr);
+
+	const UJsonAsAssetSettings* Settings = GetSettings();
+
+	if (!Settings->AssetSettings.ProjectName.IsEmpty()) {
+		OutPath = OutPath.Replace(*(Settings->AssetSettings.ProjectName + "/Content/"), TEXT("/Game/"));
+		OutPath = OutPath.Replace(*(Settings->AssetSettings.ProjectName + "/Plugins"), TEXT(""));
+		OutPath = OutPath.Replace(TEXT("/Content/"), TEXT("/"));
+	}
+
+	OutPath = OutPath.Replace(TEXT("Engine/Content"), TEXT("/Engine"));
+	OutName = OutName.Replace(TEXT("'"), TEXT(""));
+
+	if (OutName.Contains(".")) {
+		OutName.Split(".", nullptr, &OutName);
+	}
+
+	if (OutName.Contains(".")) {
+		OutName.Split(".", &OutOuter, &OutName);
+	}
+
+	if (!OutPath.StartsWith(TEXT("/"))) {
+		OutPath = "/" + OutPath;
+	}
+
+	FJRedirects::Redirect(OutPath);
+}
