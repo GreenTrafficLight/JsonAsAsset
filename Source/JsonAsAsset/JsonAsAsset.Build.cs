@@ -32,6 +32,7 @@ public class JsonAsAsset : ModuleRules {
 			"UMGEditor",
 			"ClothingSystemRuntimeCommon",
 			"MovieScene",
+			"Kismet",
 			
 #if UE_5_0_OR_LATER
 			"ContentBrowserData"
@@ -60,6 +61,8 @@ public class JsonAsAsset : ModuleRules {
 			"RenderCore",
 			"AnimGraphRuntime",
 			"AnimGraph",
+            "BlueprintGraph",
+            "KismetCompiler",
 
 #if UE_5_0_OR_LATER
 			/* Only Unreal Engine 5 */
