@@ -90,6 +90,8 @@ UObject* USerializerContainer::GetAsset() {
 	return AssetExport.Object;
 }
 
+template UMaterial* USerializerContainer::GetTypedAsset<UMaterial>() const;
+
 template<typename T>
 T* USerializerContainer::GetTypedAsset() const {
 	return AssetExport.Object ? Cast<T>(AssetExport.Object) : nullptr;

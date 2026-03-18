@@ -9,6 +9,7 @@
 /* ~~~~~~~~~~~~~ Templated Engine Classes ~~~~~~~~~~~~~ */
 #include "Materials/MaterialParameterCollection.h"
 #include "Engine/SubsurfaceProfile.h"
+#include "Engine/FontFace.h"
 #include "Curves/CurveLinearColor.h"
 #include "Modules/Log.h"
 #include "Sound/SoundNode.h"
@@ -34,6 +35,7 @@ template void IImporter::LoadExport<USoundWave>(const TSharedPtr<FJsonObject>*, 
 template void IImporter::LoadExport<UObject>(const TSharedPtr<FJsonObject>*, TObjectPtr<UObject>&);
 template void IImporter::LoadExport<UMaterialFunctionInterface>(const TSharedPtr<FJsonObject>*, TObjectPtr<UMaterialFunctionInterface>&);
 template void IImporter::LoadExport<USoundNode>(const TSharedPtr<FJsonObject>*, TObjectPtr<USoundNode>&);
+template void IImporter::LoadExport<UFontFace>(const TSharedPtr<FJsonObject>*, TObjectPtr<UFontFace>&);
 
 template <typename T>
 void IImporter::LoadExport(const TSharedPtr<FJsonObject>* PackageIndex, TObjectPtr<T>& Object) {
