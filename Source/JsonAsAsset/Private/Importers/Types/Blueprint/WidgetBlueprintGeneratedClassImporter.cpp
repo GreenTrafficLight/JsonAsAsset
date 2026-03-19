@@ -5,6 +5,9 @@
 
 #include "Importers/Constructor/ImportReader.h"
 
+#include "Utilities/BlueprintUtilities.h"
+#include "Utilities/JsonUtilities.h"
+
 #include "Components/Border.h"
 #include "Components/CanvasPanel.h"
 #include "Components/CanvasPanelSlot.h"

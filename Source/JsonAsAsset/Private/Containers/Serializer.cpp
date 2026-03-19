@@ -2,6 +2,8 @@
 
 #include "Containers/Serializer.h"
 
+#include "Particles/ParticleSystem.h"
+
 USerializerContainer::USerializerContainer() {
 	CreateSerializer();
 }
@@ -101,6 +103,7 @@ UObject* USerializerContainer::GetAsset() {
 }
 
 template UMaterial* USerializerContainer::GetTypedAsset<UMaterial>() const;
+template UParticleSystem* USerializerContainer::GetTypedAsset<UParticleSystem>() const;
 
 template<typename T>
 T* USerializerContainer::GetTypedAsset() const {

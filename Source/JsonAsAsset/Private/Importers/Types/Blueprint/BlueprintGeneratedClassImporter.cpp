@@ -2,10 +2,11 @@
 
 #include "Importers/Types/Blueprint/BlueprintGeneratedClassImporter.h"
 
+#include "Utilities/BlueprintUtilities.h"
+#include "Utilities/JsonUtilities.h"
+
 #include "Engine/SimpleConstructionScript.h"
 #include "Engine/SCS_Node.h"
-
-#include "Importers/Types/Blueprint/Utilities/BlueprintUtilities.h"
 
 #if WITH_EDITOR
 #include "Kismet2/KismetEditorUtilities.h"
@@ -28,7 +29,8 @@ UObject* IBlueprintGeneratedClassImporter::CreateAsset(UObject* CreatedAsset) {
 		SuperAsObject = GetAssetData()->GetObjectField(TEXT("Super"));
 	}
 	UClass* ParentClass = LoadParent(SuperAsObject);
-	UBlueprint* Blueprint = FKismetEditorUtilities::CreateBlueprint(ParentClass, GetPackage(), *GetAssetName(), BPTYPE_Normal, UBlueprint::StaticClass(), UBlueprintGeneratedClass::StaticClass());
+	EBlueprintType BlueprintType = GetBlueprintType(ParentClass);
+	UBlueprint* Blueprint = FKismetEditorUtilities::CreateBlueprint(ParentClass, GetPackage(), *GetAssetName(), BlueprintType, UBlueprint::StaticClass(), UBlueprintGeneratedClass::StaticClass());
 	
 	return IImporter::CreateAsset(Blueprint);
 }
@@ -54,7 +56,7 @@ bool IBlueprintGeneratedClassImporter::Import() {
 
 			if (GetAssetData()->HasField(TEXT("InheritableComponentHandler"))) {
 				FUObjectExport InheritableComponentHandlerExport = AssetContainer.GetExportByObjectPath(GetAssetData()->GetObjectField(TEXT("InheritableComponentHandler")));
-				if (InheritableComponentHandlerExport.IsValid()) {
+				if (InheritableComponentHandlerExport) {
 					HandleInheritableComponentHandler(Blueprint, InheritableComponentHandlerExport);
 				}
 			}
@@ -286,81 +288,116 @@ UEdGraph* IBlueprintGeneratedClassImporter::CreateFunction(UBlueprint* BP, FUObj
 		return ExistingGraph;
 	}
 
-	const FString FunctionFlagsString = FunctionExport.JsonObject->GetStringField(TEXT("FunctionFlags"));
-	TArray<FString> FunctionFlags;
-	FunctionFlagsString.ParseIntoArray(FunctionFlags, TEXT(" | "), true);
-
-	// Create function
-	if (!FunctionFlags.Contains("FUNC_Event") && !FunctionFlags.Contains("FUNC_Delegate")) {
-		UEdGraph* FunctionGraph = FBlueprintEditorUtils::CreateNewGraph(
-			BP,
-			*FunctionName,
-			UEdGraph::StaticClass(),
-			UEdGraphSchema_K2::StaticClass()
-		);
-
-		const UEdGraphSchema_K2* Schema = GetDefault<UEdGraphSchema_K2>();
-		Schema->CreateDefaultNodesForGraph(*FunctionGraph);
-
-		FBlueprintEditorUtils::AddFunctionGraph<UFunction>(BP, FunctionGraph, true, nullptr);
-		UE_LOG(LogTemp, Log, TEXT("Added Function Graph : '%s'."), *FunctionName);
-
-		// Create the variables, input and output of the function
-		if (FunctionExport.JsonObject->HasField(TEXT("ChildProperties"))) {
-			const TArray<TSharedPtr<FJsonValue>> ChildPropertiesAsValueArray = FunctionExport.JsonObject->GetArrayField(TEXT("ChildProperties"));
-			CreateVariables(BP, FunctionName, ChildPropertiesAsValueArray, FunctionGraph);
+	if (FunctionExport.JsonObject->HasField(TEXT("SuperStruct")) || FunctionExport.JsonObject->HasField(TEXT("Super"))) {
+		TSharedPtr<FJsonObject> SuperAsObject = nullptr;
+		bool IsBPParent = false;
+		// Parent function from C++
+		if (FunctionExport.JsonObject->HasField(TEXT("SuperStruct"))) {
+			SuperAsObject = FunctionExport.JsonObject->GetObjectField(TEXT("SuperStruct"));
 		}
-		return FunctionGraph;
-	}
-	else if (FunctionFlags.Contains("FUNC_Delegate")) {
-		FString DelegateName = FunctionName;
-		if (DelegateName.EndsWith(TEXT("__DelegateSignature"))) {
-			DelegateName = DelegateName.LeftChop(FString(TEXT("__DelegateSignature")).Len());
+		// Parent function from BP
+		else if (FunctionExport.JsonObject->HasField(TEXT("Super"))) {
+			SuperAsObject = FunctionExport.JsonObject->GetObjectField(TEXT("Super"));
+			IsBPParent = true;
 		}
 
-		UEdGraph* DelegateGraph = FBlueprintEditorUtils::CreateNewGraph(
-			BP,
-			*DelegateName,
-			UEdGraph::StaticClass(),
-			UEdGraphSchema_K2::StaticClass()
-		);
-
-		const UEdGraphSchema_K2* Schema = GetDefault<UEdGraphSchema_K2>();
-		Schema->CreateDefaultNodesForGraph(*DelegateGraph);
-		Schema->CreateFunctionGraphTerminators(*DelegateGraph, (UClass*)nullptr);
-		Schema->AddExtraFunctionFlags(DelegateGraph, (FUNC_BlueprintCallable | FUNC_BlueprintEvent | FUNC_Public));
-		Schema->MarkFunctionEntryAsEditable(DelegateGraph, true);
-
-		BP->DelegateSignatureGraphs.Add(DelegateGraph);
-		UE_LOG(LogTemp, Log, TEXT("Added Delegate Signature Graph : '%s'."), *FunctionName);
-
-		// Create the variables, input and output of the function
-		if (FunctionExport.JsonObject->HasField(TEXT("ChildProperties"))) {
-			const TArray<TSharedPtr<FJsonValue>> ChildPropertiesAsValueArray = FunctionExport.JsonObject->GetArrayField(TEXT("ChildProperties"));
-			CreateVariables(BP, FunctionName, ChildPropertiesAsValueArray, DelegateGraph);
-		}
-		return DelegateGraph;
-	}
-	// Create event
-	else {
-		const TSharedPtr<FJsonObject> SuperStruct = FunctionExport.JsonObject->GetObjectField(TEXT("SuperStruct"));
-		const FString ObjectName = SuperStruct->GetStringField(TEXT("ObjectName")).Replace(TEXT("Function'"), TEXT("")).Replace(TEXT("'"), TEXT(""));
-		const FString ObjectPath = SuperStruct->GetStringField(TEXT("ObjectPath"));
+		const FString ObjectName = SuperAsObject->GetStringField(TEXT("ObjectName")).Replace(TEXT("Function'"), TEXT("")).Replace(TEXT("'"), TEXT(""));
 		FString OuterName, EventName;
 		ObjectName.Split(TEXT(":"), &OuterName, &EventName);
 
-		UFunction* Function = BP->ParentClass->FindFunctionByName(FName(*EventName));
+		UFunction* ParentFunction = BP->ParentClass->FindFunctionByName(FName(*EventName));
 		UEdGraph* UberGraph = GetUberGraph(BP);
-		if (Function && UberGraph) {
+		if (ParentFunction && UberGraph) {
 			UK2Node_Event* EventNode = NewObject<UK2Node_Event>(UberGraph);
-			EventNode->EventReference.SetFromField<UFunction>(Function, false);
-			EventNode->bOverrideFunction = false;
+			EventNode->EventReference.SetFromField<UFunction>(ParentFunction, false);
+			EventNode->bOverrideFunction = IsBPParent;
 			EventNode->CreateNewGuid();
 			EventNode->PostPlacedNewNode();
 			EventNode->AllocateDefaultPins();
 			UberGraph->AddNode(EventNode, true, false);
+			return UberGraph;
 		}
-		return UberGraph;
+		else {
+			UE_LOG(LogTemp, Error, TEXT("Could not find UFunction '%s' in parent class"), *EventName);
+		}
+	}
+	else {
+		const FString FunctionFlagsString = FunctionExport.JsonObject->GetStringField(TEXT("FunctionFlags"));
+		TArray<FString> FunctionFlags;
+		FunctionFlagsString.ParseIntoArray(FunctionFlags, TEXT(" | "), true);
+
+		// Create function
+		if (!FunctionFlags.Contains("FUNC_Event") && !FunctionFlags.Contains("FUNC_Delegate")) {
+			UEdGraph* FunctionGraph = FBlueprintEditorUtils::CreateNewGraph(
+				BP,
+				*FunctionName,
+				UEdGraph::StaticClass(),
+				UEdGraphSchema_K2::StaticClass()
+			);
+
+			const UEdGraphSchema_K2* Schema = GetDefault<UEdGraphSchema_K2>();
+			Schema->CreateDefaultNodesForGraph(*FunctionGraph);
+
+			FBlueprintEditorUtils::AddFunctionGraph<UFunction>(BP, FunctionGraph, true, nullptr);
+			UE_LOG(LogTemp, Log, TEXT("Added Function Graph : '%s'."), *FunctionName);
+
+			// Create the variables, input and output of the function
+			if (FunctionExport.JsonObject->HasField(TEXT("ChildProperties"))) {
+				const TArray<TSharedPtr<FJsonValue>> ChildPropertiesAsValueArray = FunctionExport.JsonObject->GetArrayField(TEXT("ChildProperties"));
+				CreateVariables(BP, FunctionName, ChildPropertiesAsValueArray, FunctionGraph);
+			}
+			return FunctionGraph;
+		}
+		else if (FunctionFlags.Contains("FUNC_Delegate")) {
+			FString DelegateName = FunctionName;
+			if (DelegateName.EndsWith(TEXT("__DelegateSignature"))) {
+				DelegateName = DelegateName.LeftChop(FString(TEXT("__DelegateSignature")).Len());
+			}
+
+			UEdGraph* DelegateGraph = FBlueprintEditorUtils::CreateNewGraph(
+				BP,
+				*DelegateName,
+				UEdGraph::StaticClass(),
+				UEdGraphSchema_K2::StaticClass()
+			);
+
+			const UEdGraphSchema_K2* Schema = GetDefault<UEdGraphSchema_K2>();
+			Schema->CreateDefaultNodesForGraph(*DelegateGraph);
+			Schema->CreateFunctionGraphTerminators(*DelegateGraph, (UClass*)nullptr);
+			Schema->AddExtraFunctionFlags(DelegateGraph, (FUNC_BlueprintCallable | FUNC_BlueprintEvent | FUNC_Public));
+			Schema->MarkFunctionEntryAsEditable(DelegateGraph, true);
+
+			BP->DelegateSignatureGraphs.Add(DelegateGraph);
+			UE_LOG(LogTemp, Log, TEXT("Added Delegate Signature Graph : '%s'."), *FunctionName);
+
+			// Create the variables, input and output of the function
+			if (FunctionExport.JsonObject->HasField(TEXT("ChildProperties"))) {
+				const TArray<TSharedPtr<FJsonValue>> ChildPropertiesAsValueArray = FunctionExport.JsonObject->GetArrayField(TEXT("ChildProperties"));
+				CreateVariables(BP, FunctionName, ChildPropertiesAsValueArray, DelegateGraph);
+			}
+			return DelegateGraph;
+		}
+		// Create event
+		else {
+			const TSharedPtr<FJsonObject> SuperStruct = FunctionExport.JsonObject->GetObjectField(TEXT("SuperStruct"));
+			const FString ObjectName = SuperStruct->GetStringField(TEXT("ObjectName")).Replace(TEXT("Function'"), TEXT("")).Replace(TEXT("'"), TEXT(""));
+			const FString ObjectPath = SuperStruct->GetStringField(TEXT("ObjectPath"));
+			FString OuterName, EventName;
+			ObjectName.Split(TEXT(":"), &OuterName, &EventName);
+
+			UFunction* Function = BP->ParentClass->FindFunctionByName(FName(*EventName));
+			UEdGraph* UberGraph = GetUberGraph(BP);
+			if (Function && UberGraph) {
+				UK2Node_Event* EventNode = NewObject<UK2Node_Event>(UberGraph);
+				EventNode->EventReference.SetFromField<UFunction>(Function, false);
+				EventNode->bOverrideFunction = false;
+				EventNode->CreateNewGuid();
+				EventNode->PostPlacedNewNode();
+				EventNode->AllocateDefaultPins();
+				UberGraph->AddNode(EventNode, true, false);
+			}
+			return UberGraph;
+		}
 	}
 
 	return nullptr;
