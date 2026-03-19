@@ -1,23 +1,24 @@
 /* Copyright JsonAsAsset Contributors 2024-2026 */
 
-#include "Utilities/Serializers/PropertyUtilities.h"
+#include "Serializers/PropertySerializer.h"
 
 #include "GameplayTagContainer.h"
 #include "Importers/Constructor/Importer.h"
-#include "Utilities/Serializers/ObjectUtilities.h"
+#include "Serializers/ObjectSerializer.h"
 #include "UObject/TextProperty.h"
 
 /* Struct Serializers */
-#include "Constraint.h"
 #include "Distributions.h"
 #include "MovieSceneSection.h"
-#include "Distributions/DistributionFloat.h"
-#include "Distributions/DistributionVector.h"
 #include "Engine/FontFace.h"
-#include "Utilities/CookieUtilities.h"
-#include "Utilities/Serializers/Structs/DateTimeSerializer.h"
-#include "Utilities/Serializers/Structs/FallbackStructSerializer.h"
-#include "Utilities/Serializers/Structs/TimeSpanSerializer.h"
+#include "Decooking/ParticleSystemDecooking.h"
+#include "Serializers/Structs/DateTimeSerializer.h"
+#include "Serializers/Structs/FallbackStructSerializer.h"
+#include "Serializers/Structs/TimeSpanSerializer.h"
+
+#if ENGINE_UE4
+#include "Settings/Runtime.h"
+#endif
 
 DECLARE_LOG_CATEGORY_CLASS(LogJsonAsAssetPropertySerializer, Error, Log);
 PRAGMA_DISABLE_OPTIMIZATION
@@ -178,7 +179,7 @@ void UPropertySerializer::DeserializePropertyValue(FProperty* Property, const TS
 						ObjectSerializer->DeserializeObjectProperties(Properties.JsonObject, Object);
 					}
 
-					if (UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(Object)) {
+					if (UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(Object.Get())) {
 						StaticMeshComponent->PostEditImport();
 					}
 				}

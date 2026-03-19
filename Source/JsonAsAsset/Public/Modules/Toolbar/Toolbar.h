@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Utilities/Compatibility.h"
+#include "Engine/Compatibility.h"
 #include "Toolbar.generated.h"
 
 UCLASS()
@@ -15,6 +15,7 @@ public:
 	
 #if ENGINE_UE4
 	void UE4Register(FToolBarBuilder& Builder);
+	void UE4CloudRegister(FToolBarBuilder& Builder);
 #endif
 
 	/* Checks if JsonAsAsset is fit to function */

@@ -3,9 +3,11 @@
 #include "Modules/Cloud/Tools/ConvexCollision.h"
 
 #include "Engine/StaticMeshSocket.h"
+#include "Modules/Cloud/Cloud.h"
 #include "Utilities/EngineUtilities.h"
 
 #include "PhysicsEngine/BodySetup.h"
+#include "Utilities/JsonUtilities.h"
 
 void TToolConvexCollision::Execute() {
 	TArray<FAssetData> AssetDataList = GetAssetsInSelectedFolder();

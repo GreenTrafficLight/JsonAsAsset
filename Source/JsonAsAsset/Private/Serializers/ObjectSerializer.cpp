@@ -1,7 +1,7 @@
 /* Copyright JsonAsAsset Contributors 2024-2026 */
 
-#include "Utilities/Serializers/ObjectUtilities.h"
-#include "Utilities/Compatibility.h"
+#include "Serializers/ObjectSerializer.h"
+#include "Engine/Compatibility.h"
 
 #if ENGINE_UE5
 #include "AnimGraphNode_Base.h"
@@ -9,9 +9,10 @@
 #include "AnimGraph/Classes/AnimGraphNode_Base.h"
 #endif
 
-#include "Utilities/Serializers/PropertyUtilities.h"
+#include "Serializers/PropertySerializer.h"
 #include "UObject/Package.h"
 #include "Utilities/EngineUtilities.h"
+#include "Utilities/JsonUtilities.h"
 
 /* ReSharper disable once CppDeclaratorNeverUsed */
 DECLARE_LOG_CATEGORY_CLASS(LogJsonAsAssetObjectSerializer, All, All);
@@ -19,8 +20,7 @@ PRAGMA_DISABLE_OPTIMIZATION
 
 /* ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ */
 
-UObjectSerializer::UObjectSerializer(): Parent(nullptr), PropertySerializer(nullptr) {
-}
+UObjectSerializer::UObjectSerializer(): Parent(nullptr), PropertySerializer(nullptr) { }
 
 void UObjectSerializer::SetupExports(const TArray<TSharedPtr<FJsonValue>>& InObjects) {
 	Exports = InObjects;

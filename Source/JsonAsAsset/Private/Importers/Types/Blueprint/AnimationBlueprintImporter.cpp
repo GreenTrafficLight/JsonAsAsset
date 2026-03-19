@@ -16,7 +16,8 @@
 #include "Importers/Types/Blueprint/Utilities/AnimNodeLayoutUtillties.h"
 #include "Importers/Types/Blueprint/Utilities/StateMachineUtilities.h"
 #include "Kismet2/KismetEditorUtilities.h"
-#include "Settings/Runtime.h"
+#include "Utilities/BlueprintUtilities.h"
+#include "Utilities/JsonUtilities.h"
 
 #if ENGINE_UE5
 #include "UObject/UnrealTypePrivate.h"
@@ -519,7 +520,7 @@ void IAnimationBlueprintImporter::HandleNodeDeserialization(FUObjectExportContai
 
 					/* Specifically use RootAnimNodeContainer, because cached poses won't move with state machines */
 					FUObjectExport SaveCachedPoseExport = RootAnimNodeContainer.Find(LinkID);
-					if (!SaveCachedPoseExport.IsValid()) continue;
+					if (!SaveCachedPoseExport.IsJsonAndObjectValid()) continue;
 
 					UAnimGraphNode_SaveCachedPose* SaveCachedPose = Cast<UAnimGraphNode_SaveCachedPose>(SaveCachedPoseExport.Object);
 					if (!SaveCachedPose) continue;

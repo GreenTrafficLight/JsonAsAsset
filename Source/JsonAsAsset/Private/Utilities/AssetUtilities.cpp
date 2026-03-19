@@ -17,6 +17,7 @@
 #include "HttpModule.h"
 #include "Importers/Constructor/ImportReader.h"
 #include "Interfaces/IHttpResponse.h"
+#include "Modules/Cloud/Cloud.h"
 #include "Settings/Runtime.h"
 #include "Utilities/RemoteUtilities.h"
 
