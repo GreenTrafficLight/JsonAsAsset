@@ -11,6 +11,12 @@
 #include "Engine/SimpleConstructionScript.h"
 #include "Engine/SCS_Node.h"
 
+#if WITH_EDITOR
+#include "Kismet2/KismetEditorUtilities.h"
+#include "Kismet2/BlueprintEditorUtils.h"
+#include "EdGraphSchema_K2.h"
+#endif
+
 inline TSubclassOf<UObject> LoadClassFromPath(const FString& ObjectName, const FString& ObjectPath) {
 	const FString FullPath = ObjectPath + TEXT(".") + ObjectName;
 
@@ -132,17 +138,27 @@ inline USCS_Node* FindSCSNodeByName(const TArray<USCS_Node*>& AllNodes, const FN
 }
 
 inline UEdGraph* GetUberGraph(UBlueprint* Blueprint) {
-	if (Blueprint->UbergraphPages.Num() > 0) {
-		return Blueprint->UbergraphPages[0];
+	if (Blueprint->BlueprintType != BPTYPE_Normal || Blueprint->BlueprintType != BPTYPE_LevelScript) {
+		return nullptr;
 	}
+
+	UEdGraph* UberGraph = FBlueprintEditorUtils::FindEventGraph(Blueprint);
+	if (UberGraph) {
+		return UberGraph;
+	}
+	UE_LOG(LogTemp, Warning, TEXT("UberGraph not found"));
 	return nullptr;
 }
 
-inline void RemoveEventNodes(UEdGraph* EdGraph) {
+inline void RemoveEventNodes(UBlueprint* Blueprint) {
+	UEdGraph* UberGraph = GetUberGraph(Blueprint);
+	if (!UberGraph) {
+		return;
+	}
+
 	TArray<UK2Node_Event*> EventNodes;
-	for (UEdGraphNode* Node : EdGraph->Nodes) {
-		if (UK2Node_Event* EventNode = Cast<UK2Node_Event>(Node)) {
-			EventNodes.Add(EventNode);
-		}
+	UberGraph->GetNodesOfClass<UK2Node_Event>(EventNodes);
+	for (UK2Node_Event* EventNode : EventNodes) {
+		FBlueprintEditorUtils::RemoveNode(Blueprint, EventNode);
 	}
 }

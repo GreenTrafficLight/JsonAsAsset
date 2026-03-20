@@ -420,11 +420,8 @@ UClass* IBlueprintGeneratedClassImporter::LoadParent(const TSharedPtr<FJsonObjec
 }
 
 void IBlueprintGeneratedClassImporter::ReadFuncMap(UBlueprint* BP) {
-	// Get the ubergraph
-	UEdGraph* UberGraph = GetUberGraph(BP);
-
 	// Remove all the event nodes before creating the new ones
-	RemoveEventNodes(UberGraph);
+	RemoveEventNodes(BP);
 
 	const TSharedPtr<FJsonObject>* FuncMapObject;
 	if (GetAssetData()->TryGetObjectField(TEXT("FuncMap"), FuncMapObject)) {
