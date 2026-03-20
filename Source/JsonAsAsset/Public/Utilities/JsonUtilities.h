@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "Json.h"
+#include "Containers/ExportContainer.h"
 
 /* Conversion Functions ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ */
 #if ENGINE_UE5
@@ -220,7 +220,7 @@ inline TArray<FUObjectExport> CollectObjectPackages(FUObjectExport Export, FUObj
 }
 
 inline TSharedPtr<FJsonObject> GetExport(const FString& Type, TArray<TSharedPtr<FJsonValue>> JsonObjects, const bool GetProperties = false) {
-	for (const TSharedPtr Value : JsonObjects) {
+	for (const TSharedPtr<FJsonValue> Value : JsonObjects) {
 		const TSharedPtr<FJsonObject> ValueObject = Value->AsObject();
 
 		if (ValueObject->GetStringField(TEXT("Type")) == Type) {

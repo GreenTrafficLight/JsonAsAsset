@@ -2,9 +2,9 @@
 
 #pragma once
 
-#include "Serializers/PropertySerializer.h"
 #include "Settings/JsonAsAssetSettings.h"
 #include "EngineUtilities.h"
+#include "Containers/ExportContainer.h"
 
 #include "K2Node_FunctionEntry.h"
 #include "K2Node_Event.h"
